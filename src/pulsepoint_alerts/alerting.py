@@ -183,6 +183,7 @@ def trigger_desktop_alert(reason: str, state: RuntimeState) -> None:
             return
         state.alert_active = True
         state.alert_reason = reason
+    state.record_alert(reason, desktop_enabled=True, phone_enabled=False, source="manual_desktop")
     state.alert_stop.clear()
     thread = threading.Thread(target=play_alert_loop, args=(reason, state), daemon=True)
     thread.start()
@@ -205,6 +206,8 @@ def trigger_alert(reason: str, state: RuntimeState) -> None:
             state.alert_active = True
             state.alert_reason = reason
 
+    state.record_alert(reason, desktop_enabled=desktop_enabled, phone_enabled=phone_enabled, source="monitor")
+
     if phone_enabled:
         send_phone_push_for_alert(reason, state)
     else:
@@ -220,6 +223,7 @@ def trigger_alert(reason: str, state: RuntimeState) -> None:
 
 def silence_alert(state: RuntimeState) -> None:
     state.alert_stop.set()
+    state.acknowledge_latest_alert()
     with state.lock:
         state.alert_active = False
         state.alert_reason = ""

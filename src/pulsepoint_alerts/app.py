@@ -47,6 +47,7 @@ def nav() -> str:
 <a href="/units">Apparatus / Units</a>
 <a href="/setup">Monitor Setup</a>
 <a href="/alerts">Alerts</a>
+<a href="/history">History</a>
 <a href="/logs">Logs</a>
 </nav>
 """
@@ -352,6 +353,59 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         cfg["phone_alert_enabled"] = bool(request.form.get("phone_alert_enabled"))
         for field in ["alert_duration_seconds","cooldown_seconds","pushover_priority","pushover_retry_seconds","pushover_expire_seconds","ntfy_priority"]: cfg[field] = int(request.form.get(field, cfg.get(field, 0)))
         cfg["pushover_retry_seconds"] = max(30, cfg["pushover_retry_seconds"]); cfg["pushover_expire_seconds"] = min(10800, cfg["pushover_expire_seconds"]); save_config(cfg); state.log("Alert settings saved."); return redirect("/alerts")
+
+
+    @app.route("/history")
+    def history_page() -> Response:
+        events = list(reversed(state.alert_history(100)))
+        rows = ""
+        for event in events:
+            ack = event.get("acknowledged", "no")
+            ack_class = "good" if ack == "yes" else "warn"
+            rows += (
+                "<tr>"
+                f"<td>{html_escape(event.get('time', ''))}</td>"
+                f"<td>{html_escape(event.get('source', ''))}</td>"
+                f"<td>{html_escape(event.get('reason', ''))}</td>"
+                f"<td>{html_escape(event.get('desktop', ''))}</td>"
+                f"<td>{html_escape(event.get('phone', ''))}</td>"
+                f"<td><span class='{ack_class}'>{html_escape(ack)}</span></td>"
+                f"<td>{html_escape(event.get('ack_time', ''))}</td>"
+                "</tr>"
+            )
+
+        if not rows:
+            rows = '<tr><td colspan="7"><em>No alert history yet.</em></td></tr>'
+
+        content = f"""
+<h2>Alert History</h2>
+<div class="card">
+<form method="post" action="/history/clear" style="display:inline">
+<button type="submit">Clear History</button>
+</form>
+<table>
+<tr>
+<th>Time</th>
+<th>Source</th>
+<th>Reason</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Acknowledged</th>
+<th>ACK Time</th>
+</tr>
+{rows}
+</table>
+</div>
+"""
+        return layout("Alert History", content)
+
+
+    @app.route("/history/clear", methods=["POST"])
+    def clear_history() -> Response:
+        state.clear_alert_history()
+        state.log("Alert history cleared.")
+        return redirect("/history")
+
 
     @app.route("/logs")
     def logs_page() -> Response:
