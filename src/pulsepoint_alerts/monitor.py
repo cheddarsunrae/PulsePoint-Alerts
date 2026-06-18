@@ -47,6 +47,28 @@ def normalize_incident_text(text: str) -> str:
     return cleaned
 
 
+def summarize_incident_block(block: str, max_chars: int = 700) -> str:
+    """Create a compact call-detail summary suitable for phone push messages."""
+    lines: list[str] = []
+    seen: set[str] = set()
+
+    for raw_line in block.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        normalized = re.sub(r"\s+", " ", line)
+        key = normalized.upper()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(normalized)
+
+    summary = "\n".join(lines[:14]).strip()
+    if len(summary) > max_chars:
+        summary = summary[: max_chars - 3].rstrip() + "..."
+    return summary
+
+
 def active_unit_incident_signatures(
     active_text: str,
     unit_re: re.Pattern[str] | None,
@@ -182,10 +204,17 @@ def monitor_loop(state: RuntimeState) -> None:
                                             new_units.add(match.group(1).upper())
 
                                 alert_units = new_units or found_units
-                                trigger_alert(
-                                    f"New active incident for unit(s): {', '.join(sorted(alert_units))}",
-                                    state,
-                                )
+                                detail_blocks = [
+                                    summarize_incident_block(active_signatures.get(signature, ""))
+                                    for signature in sorted(new_signatures)
+                                ]
+                                details = "\n\n".join(block for block in detail_blocks if block)
+
+                                reason = f"New active incident for unit(s): {', '.join(sorted(alert_units))}"
+                                if details:
+                                    reason = f"{reason}\n\nCall details:\n{details}"
+
+                                trigger_alert(reason, state)
                                 last_alert_time = now
 
                             previously_present_units = found_units
