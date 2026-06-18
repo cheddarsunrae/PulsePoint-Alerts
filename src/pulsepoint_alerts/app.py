@@ -592,10 +592,26 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 
     @app.route("/test-push", methods=["POST"])
     def test_push() -> Response:
-        cfg = load_config(); provider = cfg.get("push_provider", "pushover"); title = "PulsePoint Alert Monitor Test"; message = "Test phone push sent."
-        if provider in ("pushover", "both"): send_pushover(title, message, state, emergency=True)
-        if provider in ("ntfy", "both"): send_ntfy(title, message, state)
-        if provider == "none": state.log("Test phone push skipped: provider set to none.")
+        cfg = load_config()
+        provider = cfg.get("push_provider", "pushover")
+        title = "PulsePoint Alert Monitor Test"
+        message = "Manual phone push test sent."
+
+        sent_any = False
+
+        if provider in ("pushover", "both"):
+            sent_any = send_pushover(title, message, state, emergency=True) or sent_any
+
+        if provider in ("ntfy", "both"):
+            sent_any = send_ntfy(title, message, state) or sent_any
+
+        if provider == "none":
+            state.log("Test phone push skipped: provider set to none.")
+
+        reason = "Manual phone push test sent." if sent_any else "Manual phone push test attempted but no provider confirmed success."
+        state.record_alert(reason, desktop_enabled=False, phone_enabled=sent_any, source="manual_phone")
+        state.acknowledge_latest_alert()
+
         return redirect("/alerts")
 
     return app

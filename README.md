@@ -146,3 +146,10 @@ Default runtime locations:
 - macOS/Linux: `~/.pulsepoint-alerts/alert_history.json`
 
 Alert history survives app restarts, can be cleared from the History page, and can also be exported as CSV.
+
+
+## Alert Test History
+
+Manual laptop alert tests, manual phone push tests, and simulated active incident alerts are written to Alert History.
+
+Phone push test entries are marked as `manual_phone` and are automatically treated as acknowledged because they do not create a local laptop alert that needs to be silenced.
