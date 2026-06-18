@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import platform
+import sys
+import zipfile
 import csv
 import io
 import threading
@@ -572,6 +575,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <p>Use full export for personal backup/restore. Use redacted export for troubleshooting or sharing.</p>
 <a href="/config/export"><button type="button">Export Full Config JSON</button></a>
 <a href="/config/export-redacted"><button type="button">Export Redacted Config JSON</button></a>
+<a href="/diagnostics/export"><button type="button">Export Diagnostics ZIP</button></a>
 </div>
 
 <div class="card">
@@ -621,6 +625,74 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             if redacted.get(field):
                 redacted[field] = "REDACTED"
         return redacted
+
+
+
+    @app.route("/diagnostics/export")
+    def export_diagnostics() -> Response:
+        cfg = load_config()
+        redacted_cfg = redacted_config(cfg)
+
+        with state.lock:
+            state_snapshot = {
+                "monitor_running": getattr(state, "monitor_running", None),
+                "alert_active": getattr(state, "alert_active", None),
+                "alert_reason": getattr(state, "alert_reason", None),
+                "last_status": getattr(state, "last_status", None),
+                "last_error": getattr(state, "last_error", None),
+            }
+            alert_history = list(getattr(state, "alert_events", []))[-200:]
+
+        recent_logs = state.logs(200)
+
+        diagnostics = {
+            "generated_at": now_local_iso(),
+            "app": {
+                "name": "PulsePoint Alert Monitor",
+                "runtime": "local",
+            },
+            "python": {
+                "version": sys.version,
+                "executable": sys.executable,
+                "platform": platform.platform(),
+            },
+            "paths": {
+                "config_path": str(config_path()),
+                "runtime_dir": str(Path(config_path()).parent),
+            },
+            "monitor": state_snapshot,
+            "settings_summary": {
+                "agency_ids": redacted_cfg.get("agency_ids"),
+                "units": redacted_cfg.get("units"),
+                "test_mode": redacted_cfg.get("test_mode"),
+                "poll_seconds": redacted_cfg.get("poll_seconds"),
+                "desktop_alert_enabled": redacted_cfg.get("desktop_alert_enabled"),
+                "phone_alert_enabled": redacted_cfg.get("phone_alert_enabled"),
+                "push_provider": redacted_cfg.get("push_provider"),
+                "include_call_details_in_phone_push": redacted_cfg.get("include_call_details_in_phone_push"),
+                "prevent_sleep": redacted_cfg.get("prevent_sleep"),
+                "auto_start_monitor": redacted_cfg.get("auto_start_monitor"),
+            },
+            "counts": {
+                "recent_log_lines": len(recent_logs),
+                "alert_history_events_included": len(alert_history),
+            },
+        }
+
+        buffer = io.BytesIO()
+
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("diagnostics.json", json.dumps(diagnostics, indent=2))
+            archive.writestr("redacted_config.json", json.dumps(redacted_cfg, indent=2))
+            archive.writestr("recent_logs.txt", "\n".join(recent_logs))
+            archive.writestr("alert_history_recent.json", json.dumps(alert_history, indent=2))
+
+        buffer.seek(0)
+
+        response = Response(buffer.getvalue(), mimetype="application/zip")
+        response.headers["Content-Disposition"] = f'attachment; filename="pulsepoint_diagnostics_{datetime_filename()}.zip"'
+        state.log("Diagnostics ZIP exported.")
+        return response
 
 
     @app.route("/config/export")

@@ -233,3 +233,19 @@ Full config exports may include sensitive values such as Pushover keys or ntfy t
 Use redacted exports for troubleshooting or sharing because token/key fields are replaced with `REDACTED`.
 
 Resetting config does not delete alert history.
+
+
+## Diagnostics Export
+
+The Config page includes an **Export Diagnostics ZIP** button.
+
+The diagnostics ZIP includes:
+
+- diagnostics.json
+- redacted_config.json
+- recent_logs.txt
+- alert_history_recent.json
+
+The diagnostics export is intended for troubleshooting. It uses a redacted config file so Pushover keys and ntfy tokens are not included.
+
+The full config export is still available separately for personal backup and restore, but full exports may contain secrets and should be stored securely.

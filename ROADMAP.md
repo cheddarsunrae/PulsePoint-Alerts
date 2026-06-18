@@ -195,3 +195,10 @@ Goal: Stable public release.
 ## Process Improvements
 
 - Local documentation guard added to remind/block developers when source, installer, or test changes are staged without related documentation or roadmap updates.
+
+
+## Diagnostics Export
+
+Status: implemented.
+
+The app can export a troubleshooting ZIP containing redacted config, recent logs, alert history summary, monitor state, runtime paths, and Python/platform details.
