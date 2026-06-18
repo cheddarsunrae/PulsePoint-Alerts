@@ -1,162 +1,213 @@
 # PulsePoint Alert Monitor Roadmap
 
-This roadmap tracks planned improvements for PulsePoint Alert Monitor. The app is a supplemental backup alerting aid only and is not official dispatch, CAD, radio, pager, or a life-safety system.
+PulsePoint Alert Monitor is a Windows-first supplemental backup alerting aid for locally monitoring PulsePoint Respond for Web. It is not affiliated with PulsePoint Foundation, PulsePoint Respond, any public safety agency, CAD system, radio system, pager system, or official dispatch system. It is not a life-safety system.
 
-## Current Alpha Focus
+## Current Status
 
-- Stabilize Active-vs-Recent incident parsing.
-- Improve active incident signature tracking.
-- Verify desktop/laptop alert behavior.
-- Verify phone push behavior through Pushover and ntfy.
-- Improve Windows usability and installer flow.
-- Improve UI clarity for non-technical users.
+Status: Alpha, locally functional.
 
-## Completed / Working
+The current build supports local monitoring, desktop alerting, Pushover/ntfy phone push, Active-section-only unit detection, persistent alert history, diagnostics export, saved agency/unit presets, setup pages, dashboard health monitoring, and Windows shortcut/startup helpers.
+
+## Completed Alpha Features
+
+### Core Monitoring
 
 - Local Flask web UI.
 - PulsePoint Respond for Web monitoring.
-- Agency and unit presets.
-- Test mode.
 - Active-section-only monitoring.
-- Incident signature tracking.
+- Recent/closed incident exclusion.
+- Unit/apparatus matching.
+- Incident signature tracking to reduce duplicate alerts.
+- Manual PulsePoint refresh request from Dashboard.
+- Monitor page loading hardened to avoid network-idle hangs.
+- Parser safety tests for Active/Recent separation and monitored-unit detection.
+
+### Alerting
+
 - Laptop/desktop audible alert.
 - ACK / Silence alert.
 - Pushover emergency push support.
 - ntfy urgent push support.
-- Alert channel toggles for desktop and phone.
+- Desktop alert enable/disable toggle.
+- Phone push enable/disable toggle.
+- Test Laptop Alert button.
+- Test Phone Push button.
 - Simulated active incident alert test.
-- Alert history page.
-- Logo and icon assets.
-- Favicon / app icon integration.
-- UI status colors.
-- Basic popup help/tooltips.
+- Phone push call-detail privacy toggle.
 
-## Near-Term Priority
+### UI / Usability
 
-### 1. Privacy Controls for Call Details
+- Dashboard.
+- Setup Wizard.
+- Agencies page.
+- Apparatus / Units page.
+- Monitor Setup page.
+- Alerts page.
+- Logs page.
+- Alert History page.
+- Active Debug page.
+- Config page.
+- Popup help/tooltips.
+- Color-coded Start/Stop/ACK/Test buttons.
+- Start/Stop buttons grey out when unavailable.
+- Dashboard-only auto-refresh.
+- Human-readable monitor health age display.
+- Green/yellow/red health badges.
+- Named agency display in status areas.
+- Named unit set display in status areas.
+- Logo, favicon, and app icon integration.
 
-Status: phone-push call-detail visibility setting added.
+### Runtime / Reliability
 
-Add a setting to control whether call details are included in phone push notifications.
+- Persistent alert history stored locally.
+- Alert history CSV export.
+- Runtime config path display.
+- Config full export.
+- Config redacted export.
+- Config import.
+- Config reset.
+- Diagnostics ZIP export.
+- Sleep prevention while monitoring.
+- Monitor health heartbeat:
+  - last check
+  - last success
+  - last refresh
+  - active-section-found status
+  - consecutive error count
+  - last error
+- Manual refresh queue for the running monitor.
 
-Planned setting:
+### Windows Usability
 
-- Include call details in desktop alert/history: ON/OFF
-- Include call details in phone push: ON/OFF — implemented
+- Windows desktop shortcut helper.
+- Optional Windows Startup-folder shortcut.
+- App icon used for shortcuts when available.
+- Local runtime directory under `C:\pulsepoint-alert`.
 
-Reason:
+### Process / Documentation
 
-Phone push notifications may appear on a lock screen. Users should be able to choose whether incident details such as address, call type, or unit list appear in phone notifications.
+- README maintained with feature updates.
+- Roadmap maintained with implementation status.
+- Local documentation guard added.
+- Pre-commit docs reminder/check available through `scripts/install_git_hooks.ps1`.
 
-Recommended behavior:
+## Known Watch Items
 
-- Desktop/history details: default ON
-- Phone push details: user-configurable
-- Public/shared releases should make the privacy impact clear
+- PulsePoint Web layout can change and break parsing.
+- Current app uses the Flask development server for local-only operation.
+- Manual refresh requests are processed on the next monitor loop cycle, not instantly mid-cycle.
+- Existing active incidents are captured as baseline and do not alert until a new signature appears.
+- Pushover emergency notifications repeat until acknowledged in Pushover.
+- Phone lock-screen exposure depends on user privacy setting and phone notification settings.
+- The separate `.docx` user guide may lag behind README unless regenerated.
 
-### 2. Active Incident Debug Page
+## Near-Term Next Work
 
-Add a debug page showing:
+### 1. Better Windows Installer Flow
 
-- Active section detected: yes/no
-- Raw Active section preview
-- Units detected in Active
-- Current incident signatures
-- Last signature change time
+Goal: reduce manual setup steps.
 
-Purpose:
+Planned:
 
-Help troubleshoot PulsePoint layout changes and parser behavior.
+- Check Python version.
+- Check Playwright install.
+- Install dependencies.
+- Copy app icon/logo/sound assets.
+- Create runtime folder.
+- Create desktop shortcut.
+- Optionally enable Start-at-login.
+- Open app after install.
+- Show clear success/failure messages.
 
-### 3. Persistent Alert History
+### 2. Token Masking in UI
 
-Status: local JSON persistence implemented.
+Goal: prevent accidental exposure of push tokens.
 
-Alert history now persists locally to disk and can be exported as CSV. Future work can add filtering.
+Planned:
 
-Planned fields:
+- Mask Pushover app token.
+- Mask Pushover user key.
+- Mask ntfy token.
+- Add reveal/show option only when editing.
+- Keep full export available for personal backup.
+- Keep redacted export for sharing/troubleshooting.
 
-- Alert timestamp
-- Unit(s)
-- Incident signature
-- Alert reason
-- Desktop sent
-- Phone sent
-- Acknowledged
-- ACK timestamp
-- Source: monitor, simulation, manual test
+### 3. Address / Detail Privacy Controls
 
-### 4. Windows Desktop Shortcut Helper
+Goal: more granular notification privacy.
 
-Add installer support for:
+Planned:
 
-- Creating a desktop shortcut
-- Using the app .ico
-- Opening the local app URL
-- Optional auto-start behavior
+- Include full call details in phone push.
+- Include only unit + call type.
+- Hide address from phone push.
+- Hide all call details from phone push.
 
-### 5. Start-at-Login / Overnight Mode
+Current status:
 
-Add optional Windows startup integration:
+- Basic phone call-detail ON/OFF toggle implemented.
 
-- Launch app at login
-- Optionally start monitor automatically
-- Keep Windows awake while monitoring
+### 4. Better Alert History Filtering
 
-### 6. Config Export / Import
+Goal: make history easier to review.
 
-Status: implemented full export, redacted export, import, reset, and config path display.
+Planned:
 
-Add UI controls for:
+- Filter by source.
+- Filter by acknowledged/unacknowledged.
+- Filter by desktop/phone.
+- Clear simulation/manual-test history.
+- Export filtered CSV.
 
-- Export config
-- Import config
-- Reset config
-- Backup current config
+### 5. Saved PulsePoint Sample Tests
 
-### 7. Better Installer
+Goal: stronger parser regression coverage.
 
-Improve installer behavior:
+Planned:
 
-- Check Python version
-- Check Playwright install
-- Copy app icon/logo/sound assets
-- Create runtime folder
-- Create shortcut
-- Open app after install
+- Save sanitized PulsePoint page text samples.
+- Test parser against known Active/Recent layouts.
+- Test multi-agency layouts.
+- Test edge cases with punctuation, status labels, and repeated unit IDs.
 
-## Medium-Term Improvements
+## Medium-Term Roadmap
 
 - Native Windows packaging.
-- System tray indicator.
 - Packaged executable with app icon.
-- Improved mobile-friendly UI.
-- Theme support / dark mode.
+- System tray indicator.
+- One-command installer.
+- Mobile-friendly UI polish.
+- Dark mode/theme support.
 - Multi-agency monitoring improvements.
 - Multi-unit alert grouping.
 - Per-unit alert settings.
 - Alert snooze / mute window.
-- Better parser tests using saved PulsePoint page samples.
 - Optional local-only logs export.
+- Optional encrypted config storage.
 
 ## Security / Privacy Backlog
 
 - Mask tokens by default in UI.
-- Add clear warning for phone lock-screen exposure.
+- Avoid logging full secrets or tokens.
+- Add stronger lock-screen privacy warning.
 - Option to hide addresses from phone pushes.
 - Option to include only unit/call type without address.
-- Optional encrypted config storage later.
-- Avoid logging full secrets or tokens.
+- Redact sensitive fields in diagnostics by default.
 - Clear test/simulation data from history.
+- Optional encrypted config storage later.
 
 ## Release Milestones
 
 ### v0.1 Alpha
 
-Goal: Working local technical preview.
+Goal: working local technical preview.
+
+Status: substantially complete.
+
+Includes:
 
 - Windows-first local monitoring.
-- Basic installer scripts.
+- Basic installer/start scripts.
 - Desktop and phone alerting.
 - Active incident detection.
 - Alert history.
@@ -164,99 +215,47 @@ Goal: Working local technical preview.
 
 ### v0.2 Alpha
 
-Goal: More reliable and user-friendly.
+Goal: more reliable and user-friendly.
+
+Status: in progress, mostly complete.
+
+Includes:
 
 - Privacy controls.
 - Debug page.
 - Persistent history.
-- Better installer.
 - Desktop shortcut helper.
+- Diagnostics export.
+- Dashboard health monitor.
+- Config import/export.
+
+Remaining:
+
+- Better installer flow.
+- Token masking.
 
 ### v0.3 Beta
 
-Goal: Normal-user install experience.
+Goal: normal-user install experience.
+
+Planned:
 
 - One-command or packaged Windows install.
-- Startup integration.
+- Startup integration polish.
+- Better installer validation.
 - Polished UI.
-- Stronger parser test coverage.
-- Config import/export.
+- Stronger parser sample tests.
+- Better privacy controls.
 
 ### v1.0
 
-Goal: Stable public release.
+Goal: stable public release.
+
+Planned:
 
 - Documented limitations.
 - Tested install/update path.
 - Robust alert behavior.
 - User-facing safety disclaimers.
 - Clear non-affiliation language.
-
-## Process Improvements
-
-- Local documentation guard added to remind/block developers when source, installer, or test changes are staged without related documentation or roadmap updates.
-
-
-## Diagnostics Export
-
-Status: implemented.
-
-The app can export a troubleshooting ZIP containing redacted config, recent logs, alert history summary, monitor state, runtime paths, and Python/platform details.
-
-
-## Parser Safety Tests
-
-Status: implemented.
-
-Added tests for Active/Recent section separation, monitored-unit detection, signature normalization, and call-detail summary cleanup.
-
-The live monitor navigation was also changed from network-idle waits to DOM-content-loaded waits with a short settle delay to reduce hanging behavior.
-
-
-## Named Agency Status Display
-
-Status: implemented.
-
-The top status bar now resolves active agency ID(s) to a saved agency preset name when available.
-
-
-## Named Agency and Unit Status Display
-
-Status: implemented.
-
-The dashboard, config summary, and top status bar now resolve active agency ID(s) and active unit lists to saved preset names when available.
-
-
-## Monitor Health Heartbeat
-
-Status: implemented.
-
-The UI now reports last check time, last success time, last refresh time, consecutive error count, last error, and Active-section detection status. Diagnostics export also includes these fields.
-
-
-## Dashboard heartbeat scope fix
-
-Status: implemented.
-
-Fixed dashboard rendering so monitor-health variables are defined inside the dashboard view as well as the shared layout.
-
-
-## Human-Readable Monitor Health
-
-Status: implemented.
-
-Health display now includes human-readable age text, green/yellow/red badge states, and stale-monitor detection based on poll interval.
-
-
-## Dashboard Auto-Refresh
-
-Status: implemented.
-
-Dashboard auto-refreshes every 10 seconds. Configuration pages intentionally do not auto-refresh to avoid losing typed settings.
-
-
-## Manual PulsePoint Refresh
-
-Status: implemented.
-
-Dashboard now has a Refresh PulsePoint Now button that queues an immediate page reload for the running monitor. The button is disabled when the monitor is stopped.
+- Better privacy defaults.

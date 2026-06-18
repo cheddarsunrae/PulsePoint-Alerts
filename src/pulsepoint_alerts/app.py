@@ -252,7 +252,7 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .help-tip:hover .help-text, .help-tip:focus .help-text {{ visibility: visible; opacity: 1; }}
 </style></head>
 <body><header><h1>PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
-<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span> | <strong>Last Check:</strong> {html_escape(last_check_age)} | <strong>Errors:</strong> {consecutive_errors}</div>
+<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span></div>
 {alert_controls}<main>{content}</main></body></html>""", mimetype="text/html")
 
 
@@ -301,7 +301,18 @@ def create_app() -> Flask:
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
-<div class="card"><h3>Monitor Health</h3><p><strong>Health:</strong> <span class="status-pill {dashboard_health_class}">{dashboard_health_label}</span></p><p><strong>Last check:</strong> {html_escape(last_check_age)} <small>({html_escape(last_check_time)})</small></p><p><strong>Last success:</strong> {html_escape(last_success_age)} <small>({html_escape(last_success_time)})</small></p><p><strong>Last refresh:</strong> {html_escape(last_refresh_age)} <small>({html_escape(last_refresh_time)})</small></p><p><strong>Active section:</strong> {active_section_status}</p><p><strong>Consecutive errors:</strong> {consecutive_errors}</p><p><strong>Last error:</strong> {html_escape(last_error or "(none)")}</p></div>
+<div class="card"><h3>Monitor Health</h3>
+<table>
+<tr><th>Item</th><th>Status</th></tr>
+<tr><td>Overall health</td><td><span class="status-pill {dashboard_health_class}">{dashboard_health_label}</span></td></tr>
+<tr><td>Last check</td><td>{html_escape(last_check_age)} <small>({html_escape(last_check_time)})</small></td></tr>
+<tr><td>Last success</td><td>{html_escape(last_success_age)} <small>({html_escape(last_success_time)})</small></td></tr>
+<tr><td>Last refresh</td><td>{html_escape(last_refresh_age)} <small>({html_escape(last_refresh_time)})</small></td></tr>
+<tr><td>Active section</td><td>{active_section_status}</td></tr>
+<tr><td>Consecutive errors</td><td>{consecutive_errors}</td></tr>
+<tr><td>Last error</td><td>{html_escape(last_error or "(none)")}</td></tr>
+</table>
+</div>
 <div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
 <form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
 <form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>

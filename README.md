@@ -335,3 +335,16 @@ The Dashboard includes a **Refresh PulsePoint Now** button.
 This button requests an immediate reload of the PulsePoint page on the next monitor cycle. It does not restart the monitor and does not change configuration.
 
 The button is disabled when the monitor is stopped.
+
+
+## Dashboard Health Layout
+
+The top status bar is intentionally kept as an at-a-glance summary:
+
+- Monitor
+- Health
+- Alert
+- Agency
+- Units
+
+Detailed health information is shown in the Dashboard Monitor Health card to avoid duplicating too much information across the page.
