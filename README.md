@@ -145,4 +145,4 @@ Default runtime locations:
 - Windows: `C:\pulsepoint-alert\alert_history.json`
 - macOS/Linux: `~/.pulsepoint-alerts/alert_history.json`
 
-Alert history survives app restarts and can be cleared from the History page.
+Alert history survives app restarts, can be cleared from the History page, and can also be exported as CSV.

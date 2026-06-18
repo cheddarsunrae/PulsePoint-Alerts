@@ -72,7 +72,7 @@ Help troubleshoot PulsePoint layout changes and parser behavior.
 
 Status: local JSON persistence implemented.
 
-Alert history now persists locally to disk. Future work can add CSV export and filtering.
+Alert history now persists locally to disk and can be exported as CSV. Future work can add filtering.
 
 Planned fields:
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import csv
+import io
 import threading
 
 from flask import Flask, Response, redirect, request, send_from_directory
@@ -37,6 +39,12 @@ def help_tip(message: str) -> str:
 
 def units_display(units: list[str] | None) -> str:
     return ", ".join(units or [])
+
+
+
+def datetime_filename() -> str:
+    from datetime import datetime
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def nav() -> str:
@@ -387,6 +395,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <form method="post" action="/history/clear" style="display:inline">
 <button type="submit">Clear History</button>
 </form>
+<a href="/history/export.csv"><button type="button">Export CSV</button></a>
 <table>
 <tr>
 <th>Time</th>
@@ -402,6 +411,25 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 </div>
 """
         return layout("Alert History", content)
+
+
+
+    @app.route("/history/export.csv")
+    def export_history_csv() -> Response:
+        events = state.alert_history(500)
+        output = io.StringIO()
+        fieldnames = ["time", "source", "reason", "desktop", "phone", "acknowledged", "ack_time"]
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for event in events:
+            writer.writerow({field: event.get(field, "") for field in fieldnames})
+
+        filename = f"pulsepoint_alert_history_{datetime_filename()}.csv"
+        response = Response(output.getvalue(), mimetype="text/csv")
+        response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+        state.log("Alert history exported as CSV.")
+        return response
 
 
     @app.route("/history/clear", methods=["POST"])
