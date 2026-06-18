@@ -11,7 +11,7 @@ from . import __version__
 from .alerting import send_ntfy, send_pushover, silence_alert, trigger_alert, trigger_desktop_alert
 from .config import load_config, normalize_units, save_config
 from .keepawake import set_keep_awake
-from .monitor import monitor_loop
+from .monitor import active_section_text, active_unit_incident_signatures, build_unit_regex, monitor_loop
 from .runtime import RuntimeState
 
 state = RuntimeState()
@@ -48,6 +48,7 @@ def nav() -> str:
 <a href="/setup">Monitor Setup</a>
 <a href="/alerts">Alerts</a>
 <a href="/history">History</a>
+<a href="/debug/active">Active Debug</a>
 <a href="/logs">Logs</a>
 </nav>
 """
@@ -405,6 +406,103 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         state.clear_alert_history()
         state.log("Alert history cleared.")
         return redirect("/history")
+
+
+
+    @app.route("/debug/active")
+    def active_debug_page() -> Response:
+        cfg = load_config()
+        agency_ids = (cfg.get("agency_ids") or "").strip()
+        units = cfg.get("units", [])
+        unit_re = build_unit_regex(units)
+        url = f"https://web.pulsepoint.org/?agencies={agency_ids}" if agency_ids else ""
+
+        if not agency_ids:
+            content = """
+<h2>Active Incident Debug</h2>
+<div class="danger">No agency ID is configured.</div>
+"""
+            return layout("Active Incident Debug", content)
+
+        try:
+            from playwright.sync_api import sync_playwright
+
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(url, wait_until="networkidle", timeout=60000)
+                page_text = page.locator("body").inner_text(timeout=10000)
+                browser.close()
+
+            active_text = active_section_text(page_text)
+
+            if active_text is None:
+                content = f"""
+<h2>Active Incident Debug</h2>
+<div class="danger">Active section was not found.</div>
+<div class="card">
+<p><strong>URL:</strong> <code>{html_escape(url)}</code></p>
+<p><strong>Configured units:</strong> <code>{html_escape(units_display(units))}</code></p>
+</div>
+<div class="card">
+<h3>First 4000 characters of page text</h3>
+<pre>{html_escape(page_text[:4000])}</pre>
+</div>
+"""
+                return layout("Active Incident Debug", content)
+
+            signatures, units_found = active_unit_incident_signatures(active_text, unit_re)
+
+            signature_rows = ""
+            for signature, block in signatures.items():
+                short_sig = signature[:16]
+                signature_rows += (
+                    "<tr>"
+                    f"<td><code>{html_escape(short_sig)}</code></td>"
+                    f"<td><pre style='height:140px'>{html_escape(block)}</pre></td>"
+                    "</tr>"
+                )
+
+            if not signature_rows:
+                signature_rows = '<tr><td colspan="2"><em>No monitored-unit incident signatures found in Active.</em></td></tr>'
+
+            content = f"""
+<h2>Active Incident Debug</h2>
+<div class="card">
+<form method="get" action="/debug/active">
+<button type="submit">Refresh Active Debug</button>
+</form>
+<p><strong>URL:</strong> <code>{html_escape(url)}</code></p>
+<p><strong>Configured units:</strong> <code>{html_escape(units_display(units))}</code></p>
+<p><strong>Units detected in Active:</strong> <code>{html_escape(', '.join(sorted(units_found)) if units_found else '(none)')}</code></p>
+<p><strong>Incident signatures:</strong> <code>{len(signatures)}</code></p>
+</div>
+
+<div class="card">
+<h3>Detected Incident Signatures</h3>
+<table>
+<tr><th>Signature</th><th>Matched Active Incident Text</th></tr>
+{signature_rows}
+</table>
+</div>
+
+<div class="card">
+<h3>Raw Active Section Preview</h3>
+<pre>{html_escape(active_text[:8000])}</pre>
+</div>
+"""
+            return layout("Active Incident Debug", content)
+
+        except Exception as exc:
+            content = f"""
+<h2>Active Incident Debug</h2>
+<div class="danger">Debug fetch failed: {html_escape(exc)}</div>
+<div class="card">
+<p><strong>URL:</strong> <code>{html_escape(url)}</code></p>
+<p><strong>Configured units:</strong> <code>{html_escape(units_display(units))}</code></p>
+</div>
+"""
+            return layout("Active Incident Debug", content)
 
 
     @app.route("/logs")
