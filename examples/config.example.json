@@ -1,0 +1,23 @@
+{
+  "agency_ids": "37047",
+  "units": [
+    "M231"
+  ],
+  "poll_seconds": 5,
+  "test_mode": false,
+  "push_provider": "none",
+  "agency_presets": [
+    {
+      "name": "Example Agency",
+      "agency_ids": "37047"
+    }
+  ],
+  "unit_presets": [
+    {
+      "name": "Example Unit",
+      "units": [
+        "M231"
+      ]
+    }
+  ]
+}
