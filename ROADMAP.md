@@ -35,12 +35,14 @@ This roadmap tracks planned improvements for PulsePoint Alert Monitor. The app i
 
 ### 1. Privacy Controls for Call Details
 
+Status: phone-push call-detail visibility setting added.
+
 Add a setting to control whether call details are included in phone push notifications.
 
 Planned setting:
 
 - Include call details in desktop alert/history: ON/OFF
-- Include call details in phone push: ON/OFF
+- Include call details in phone push: ON/OFF — implemented
 
 Reason:
 

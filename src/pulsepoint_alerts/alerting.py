@@ -115,6 +115,18 @@ def send_ntfy(title: str, message: str, state: RuntimeState) -> bool:
         return False
 
 
+def phone_push_reason(reason: str, cfg: dict[str, Any]) -> str:
+    """Return the phone-safe alert reason based on privacy settings."""
+    if bool(cfg.get("include_call_details_in_phone_push", True)):
+        return reason
+
+    marker = "\n\nCall details:"
+    if marker in reason:
+        return reason.split(marker, 1)[0].strip() + "\n\nCall details hidden by privacy setting."
+
+    return reason
+
+
 def send_phone_push_for_alert(reason: str, state: RuntimeState) -> None:
     cfg = load_config()
     provider = cfg.get("push_provider", "pushover")
@@ -122,7 +134,8 @@ def send_phone_push_for_alert(reason: str, state: RuntimeState) -> None:
         state.log("Phone push skipped: provider set to none.")
         return
     title = "PulsePoint Unit Alert"
-    message = f"{reason}\n\nPulsePoint Alert Monitor triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."
+    phone_reason = phone_push_reason(reason, cfg)
+    message = f"{phone_reason}\n\nPulsePoint Alert Monitor triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."
     if provider in ("pushover", "both"):
         send_pushover(title, message, state, emergency=True)
     if provider in ("ntfy", "both"):

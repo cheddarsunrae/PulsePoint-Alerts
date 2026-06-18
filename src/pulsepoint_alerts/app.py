@@ -343,6 +343,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         content = f"""<h2>Alerts</h2><div class="card"><form method="post" action="/alerts/save"><h3>Alert Channels</h3>
 <label><input type="checkbox" name="desktop_alert_enabled" {checked(cfg.get('desktop_alert_enabled', True))}> Laptop / desktop audible alert {help_tip("When enabled, the computer plays the local alert sound when a monitored unit is detected.")}</label>
 <label><input type="checkbox" name="phone_alert_enabled" {checked(cfg.get('phone_alert_enabled', True))}> Phone push alert {help_tip("When enabled, the app sends a push notification through the configured phone provider.")}</label>
+<label><input type="checkbox" name="include_call_details_in_phone_push" {checked(cfg.get('include_call_details_in_phone_push', True))}> Include call details in phone push {help_tip("When enabled, phone pushes can include incident details such as call type, address/context, and units. Turn off if you do not want details visible on your phone lock screen.")}</label>
 <h3>Laptop Alert</h3><label>Alert sound file {help_tip("Path to the local WAV file used for the laptop alert. The installer copies a default alert.wav into the runtime folder.")}</label><input type="text" name="sound_file" value="{html_escape(cfg.get('sound_file',''))}"><label>Alert mode {help_tip("Until acknowledged keeps sounding until ACK/Silence is clicked. Timed mode stops after the configured duration.")}</label><select name="alert_mode"><option value="until_ack" {selected(cfg.get('alert_mode'), 'until_ack')}>Keep alerting until acknowledged</option><option value="timed" {selected(cfg.get('alert_mode'), 'timed')}>Alert for fixed duration</option></select><label>Alert duration, seconds {help_tip("Only used in timed mode. Until-acknowledged mode ignores this and continues until silenced.")}</label><input type="number" name="alert_duration_seconds" value="{cfg.get('alert_duration_seconds',30)}"><label>Cooldown, seconds {help_tip("Minimum time between alerts. Helps prevent repeated alerts from rapid page changes or repeated signatures.")}</label><input type="number" name="cooldown_seconds" value="{cfg.get('cooldown_seconds',60)}"><h3>Phone Push</h3><label>Push provider {help_tip("Choose which phone push service to use. Pushover is recommended for emergency-style repeated alerts.")}</label><select name="push_provider"><option value="none" {selected(provider, 'none')}>None</option><option value="pushover" {selected(provider, 'pushover')}>Pushover</option><option value="ntfy" {selected(provider, 'ntfy')}>ntfy</option><option value="both" {selected(provider, 'both')}>Both</option></select><h4>Pushover</h4><label>App API Token {help_tip("Pushover application/API token. This is different from your user key.")}</label><input type="password" name="pushover_app_token" value="{html_escape(cfg.get('pushover_app_token',''))}"><label>User Key {help_tip("Your Pushover recipient/user key. This identifies the phone/account receiving alerts.")}</label><input type="password" name="pushover_user_key" value="{html_escape(cfg.get('pushover_user_key',''))}"><label>Device Name — optional</label><input type="text" name="pushover_device" value="{html_escape(cfg.get('pushover_device',''))}"><label>Priority {help_tip("For Pushover, priority 2 is emergency priority and repeats until acknowledged in Pushover or until expiry.")}</label><input type="number" name="pushover_priority" value="{cfg.get('pushover_priority',2)}"><label>Retry Seconds {help_tip("For Pushover emergency priority, how often Pushover repeats the notification. Minimum is 30 seconds.")}</label><input type="number" name="pushover_retry_seconds" value="{cfg.get('pushover_retry_seconds',30)}"><label>Expire Seconds {help_tip("For Pushover emergency priority, how long Pushover keeps retrying before giving up. Maximum is 10800 seconds.")}</label><input type="number" name="pushover_expire_seconds" value="{cfg.get('pushover_expire_seconds',1800)}"><label>Sound</label><input type="text" name="pushover_sound" value="{html_escape(cfg.get('pushover_sound','persistent'))}"><h4>ntfy</h4><label>Server</label><input type="text" name="ntfy_server" value="{html_escape(cfg.get('ntfy_server','https://ntfy.sh'))}"><label>Topic</label><input type="text" name="ntfy_topic" value="{html_escape(cfg.get('ntfy_topic',''))}"><label>Bearer Token — optional</label><input type="password" name="ntfy_token" value="{html_escape(cfg.get('ntfy_token',''))}"><label>Priority {help_tip("For Pushover, priority 2 is emergency priority and repeats until acknowledged in Pushover or until expiry.")}</label><input type="number" name="ntfy_priority" value="{cfg.get('ntfy_priority',5)}"><label>Tags</label><input type="text" name="ntfy_tags" value="{html_escape(cfg.get('ntfy_tags','rotating_light,ambulance'))}"><label>Call — optional {help_tip("ntfy call option. On public ntfy.sh this may require a paid plan and a verified phone number.")}</label><input type="text" name="ntfy_call" value="{html_escape(cfg.get('ntfy_call',''))}"><br><button type="submit">Save Alert Settings</button></form><form method="post" action="/test-sound" style="display:inline"><button class="btn-test">Test Laptop Alert</button></form><form method="post" action="/test-push" style="display:inline"><button class="btn-phone">Test Phone Push</button></form><form method="post" action="/simulate-incident" style="display:inline"><button class="btn-test">Simulate Active Incident Alert</button></form></div>"""
         return layout("Alerts", content)
 
@@ -352,6 +353,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         for field in fields: cfg[field] = request.form.get(field, "").strip()
         cfg["desktop_alert_enabled"] = bool(request.form.get("desktop_alert_enabled"))
         cfg["phone_alert_enabled"] = bool(request.form.get("phone_alert_enabled"))
+        cfg["include_call_details_in_phone_push"] = bool(request.form.get("include_call_details_in_phone_push"))
         for field in ["alert_duration_seconds","cooldown_seconds","pushover_priority","pushover_retry_seconds","pushover_expire_seconds","ntfy_priority"]: cfg[field] = int(request.form.get(field, cfg.get(field, 0)))
         cfg["pushover_retry_seconds"] = max(30, cfg["pushover_retry_seconds"]); cfg["pushover_expire_seconds"] = min(10800, cfg["pushover_expire_seconds"]); save_config(cfg); state.log("Alert settings saved."); return redirect("/alerts")
 
@@ -428,11 +430,18 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             from playwright.sync_api import sync_playwright
 
             with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto(url, wait_until="networkidle", timeout=60000)
-                page_text = page.locator("body").inner_text(timeout=10000)
-                browser.close()
+                browser = None
+                try:
+                    state.log("Active debug fetch requested.")
+                    browser = p.chromium.launch(headless=True)
+                    page = browser.new_page()
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_timeout(5000)
+                    page_text = page.locator("body").inner_text(timeout=10000)
+                    state.log("Active debug fetch completed.")
+                finally:
+                    if browser is not None:
+                        browser.close()
 
             active_text = active_section_text(page_text)
 

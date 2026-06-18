@@ -17,6 +17,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "alert_duration_seconds": 30,
     "desktop_alert_enabled": True,
     "phone_alert_enabled": True,
+    "include_call_details_in_phone_push": True,
     "cooldown_seconds": 60,
     "refresh_seconds": 300,
     "headless": True,

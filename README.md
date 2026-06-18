@@ -125,3 +125,12 @@ This software is not an official dispatch system, pager, CAD terminal, MDT, radi
 PulsePoint feeds may lag, omit incidents, omit units, change format, become unavailable, or fail. This tool may also fail due to operating system sleep, network connectivity, browser changes, API/provider failures, local configuration errors, notification-service failures, device settings, or software defects.
 
 This software is provided “as is,” without warranty of any kind. The authors, maintainers, contributors, and affiliated entities are not responsible for missed calls, delayed responses, operational errors, injury, death, data loss, device malfunction, notification failure, employment consequences, disciplinary action, or any other damages or bad outcomes arising from use or misuse of this software.
+
+
+## Privacy: Phone Push Call Details
+
+The Alerts page includes a setting to control whether call details are included in phone push notifications.
+
+When enabled, Pushover and/or ntfy messages may include incident details from the PulsePoint Active section. Depending on phone settings, these details may appear on the lock screen.
+
+Turn this setting off if you want phone pushes to show only that a monitored unit alert occurred without including call details.
