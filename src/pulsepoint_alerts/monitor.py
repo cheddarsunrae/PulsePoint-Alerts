@@ -135,7 +135,8 @@ def monitor_loop(state: RuntimeState) -> None:
             cfg = load_config()
             browser = p.chromium.launch(headless=bool(cfg.get("headless", True)))
             page = browser.new_page()
-            page.goto(url, wait_until="networkidle", timeout=60000)
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(5000)
 
             while not state.monitor_stop.is_set():
                 try:
@@ -226,7 +227,8 @@ def monitor_loop(state: RuntimeState) -> None:
                     )
 
                     if now - last_refresh >= refresh_seconds:
-                        page.reload(wait_until="networkidle", timeout=60000)
+                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(5000)
                         last_refresh = now
                         state.log("PulsePoint page refreshed.")
 
@@ -235,7 +237,8 @@ def monitor_loop(state: RuntimeState) -> None:
                 except Exception as exc:
                     state.log(f"Monitor error: {exc}. Reloading page.")
                     try:
-                        page.reload(wait_until="networkidle", timeout=60000)
+                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(5000)
                     except Exception as reload_error:
                         state.log(f"Reload failed: {reload_error}")
                     time.sleep(max(5, int(load_config().get("poll_seconds", 5))))

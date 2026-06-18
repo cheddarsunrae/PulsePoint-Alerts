@@ -202,3 +202,12 @@ Goal: Stable public release.
 Status: implemented.
 
 The app can export a troubleshooting ZIP containing redacted config, recent logs, alert history summary, monitor state, runtime paths, and Python/platform details.
+
+
+## Parser Safety Tests
+
+Status: implemented.
+
+Added tests for Active/Recent section separation, monitored-unit detection, signature normalization, and call-detail summary cleanup.
+
+The live monitor navigation was also changed from network-idle waits to DOM-content-loaded waits with a short settle delay to reduce hanging behavior.

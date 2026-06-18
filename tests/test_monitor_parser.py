@@ -1,0 +1,114 @@
+from pulsepoint_alerts.monitor import (
+    active_section_text,
+    active_unit_incident_signatures,
+    build_unit_regex,
+    normalize_incident_text,
+    summarize_incident_block,
+)
+
+
+def test_active_section_excludes_recent_section():
+    page_text = """
+HEADER
+
+ACTIVE
+
+Medical Emergency
+123 Main St
+M231
+E201
+
+RECENT
+
+Medical Emergency
+456 Closed St
+M231
+"""
+
+    active = active_section_text(page_text)
+
+    assert active is not None
+    assert "123 Main St" in active
+    assert "M231" in active
+    assert "RECENT" not in active
+    assert "456 Closed St" not in active
+
+
+def test_recent_only_unit_does_not_match():
+    page_text = """
+ACTIVE
+
+No monitored units here
+
+RECENT
+
+Traffic Collision
+M231
+Closed incident
+"""
+
+    active = active_section_text(page_text)
+    unit_re = build_unit_regex(["M231"])
+    signatures, units = active_unit_incident_signatures(active or "", unit_re)
+
+    assert signatures == {}
+    assert units == set()
+
+
+def test_active_unit_signature_detects_monitored_unit():
+    active = """
+Medical Emergency
+123 Main St
+Patient contact
+?M231
+E201
+"""
+
+    unit_re = build_unit_regex(["M231"])
+    signatures, units = active_unit_incident_signatures(active, unit_re)
+
+    assert "M231" in units
+    assert len(signatures) >= 1
+    assert any("123 Main St" in block for block in signatures.values())
+
+
+def test_active_unit_signature_detects_multiple_units_in_same_incident():
+    active = """
+Structure Fire
+789 Broadway
+^E201
+?M231
+B1
+"""
+
+    unit_re = build_unit_regex(["M231", "E201"])
+    signatures, units = active_unit_incident_signatures(active, unit_re)
+
+    assert units == {"M231", "E201"}
+    assert len(signatures) >= 1
+
+
+def test_normalize_incident_text_removes_time_and_age_noise():
+    original = "Medical Emergency 12:31 PM 4 MINS M231"
+    normalized = normalize_incident_text(original)
+
+    assert "12:31" not in normalized
+    assert "4 MINS" not in normalized
+    assert "MEDICAL EMERGENCY" in normalized
+    assert "M231" in normalized
+
+
+def test_summarize_incident_block_deduplicates_lines():
+    block = """
+Medical Emergency
+Medical Emergency
+123 Main St
+M231
+M231
+"""
+
+    summary = summarize_incident_block(block)
+
+    assert summary.count("Medical Emergency") == 1
+    assert summary.count("M231") == 1
+    assert "123 Main St" in summary

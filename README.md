@@ -249,3 +249,18 @@ The diagnostics ZIP includes:
 The diagnostics export is intended for troubleshooting. It uses a redacted config file so Pushover keys and ntfy tokens are not included.
 
 The full config export is still available separately for personal backup and restore, but full exports may contain secrets and should be stored securely.
+
+
+## Monitor Parser Safety Tests
+
+The test suite includes parser-safety tests for the PulsePoint Active/Recent split.
+
+These tests verify that:
+
+- Active incidents are scanned
+- Recent/closed incidents are ignored
+- monitored unit IDs are detected in Active incidents
+- time/age noise is normalized out of incident signatures
+- repeated lines are deduplicated in call-detail summaries
+
+The live monitor uses `domcontentloaded` plus a short page-settle delay instead of waiting for full network idle, because PulsePoint can continue background network activity and cause network-idle waits to hang.
