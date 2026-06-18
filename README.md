@@ -153,3 +153,54 @@ Alert history survives app restarts, can be cleared from the History page, and c
 Manual laptop alert tests, manual phone push tests, and simulated active incident alerts are written to Alert History.
 
 Phone push test entries are marked as `manual_phone` and are automatically treated as acknowledged because they do not create a local laptop alert that needs to be silenced.
+
+## Windows Shortcuts and Start-at-Login
+
+PulsePoint Alert Monitor includes a Windows shortcut helper script.
+
+### Create a Desktop Shortcut
+
+From the repository folder, run:
+
+    powershell -ExecutionPolicy Bypass -File .\installers\windows\create_shortcuts.ps1
+
+This creates a desktop shortcut named:
+
+    PulsePoint Alert Monitor
+
+The shortcut launches the app through:
+
+    installers\windows\start.bat
+
+### Enable Start-at-Login
+
+To launch the app automatically when Windows starts, run:
+
+    powershell -ExecutionPolicy Bypass -File .\installers\windows\create_shortcuts.ps1 -StartAtLogin -NoDesktop
+
+This creates a shortcut in the Windows Startup folder.
+
+### Verify Start-at-Login
+
+Run:
+
+    C:\Users\Shane\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\PulsePoint Alert Monitor.lnk = Join-Path ([Environment]::GetFolderPath("Startup")) "PulsePoint Alert Monitor.lnk"
+    Test-Path C:\Users\Shane\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\PulsePoint Alert Monitor.lnk
+
+Expected result:
+
+    True
+
+### Remove Start-at-Login
+
+Run:
+
+    powershell -ExecutionPolicy Bypass -File .\installers\windows\create_shortcuts.ps1 -RemoveStartAtLogin -NoDesktop
+
+### Important Note
+
+Start-at-login launches the app. To make the monitor itself start automatically after the app launches, enable the in-app setting:
+
+    Auto-start monitor when app launches
+
+This setting is located on the Monitor Setup page.
