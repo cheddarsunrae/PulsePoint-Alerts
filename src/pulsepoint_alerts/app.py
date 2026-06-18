@@ -36,6 +36,7 @@ def nav() -> str:
     return """
 <nav>
 <a href="/">Dashboard</a>
+<a href="/first-run">Setup Wizard</a>
 <a href="/agencies">Agencies</a>
 <a href="/units">Apparatus / Units</a>
 <a href="/setup">Monitor Setup</a>
@@ -85,8 +86,19 @@ def create_app() -> Flask:
     def dashboard() -> Response:
         cfg = load_config()
         logs = state.logs(60)
+        first_run_html = ""
+        if not cfg.get("agency_ids") or not cfg.get("units"):
+            first_run_html = """
+<div class="danger">
+<h3>Setup needed</h3>
+<p>No agency or unit is fully configured yet. Start with the setup wizard.</p>
+<form method="get" action="/first-run">
+<button type="submit">Start Setup Wizard</button>
+</form>
+</div>
+"""
         content = f"""
-<h2>Dashboard</h2><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
+{first_run_html}<h2>Dashboard</h2><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
 <p><strong>Agency IDs:</strong> <code>{html_escape(cfg.get('agency_ids') or '(none)')}</code></p>
 <p><strong>Units:</strong> <code>{html_escape(units_display(cfg.get('units')) or '(none)')}</code></p>
@@ -99,6 +111,107 @@ def create_app() -> Flask:
 <form method="post" action="/test-push"><button type="submit">Test Phone Push</button></form></div></div>
 <div class="card"><h3>Recent Log</h3><pre>{html_escape(chr(10).join(logs))}</pre></div>"""
         return layout("Dashboard", content)
+
+
+    @app.route("/first-run")
+    def first_run_page() -> Response:
+        cfg = load_config()
+        content = f"""
+<h2>First-Run Setup Wizard</h2>
+<div class="warn">
+This wizard configures the minimum needed to start monitoring. You can fine-tune phone alerts later on the Alerts page.
+</div>
+
+<div class="card">
+<form method="post" action="/first-run/save">
+<h3>Step 1: Agency / PulsePoint Feed</h3>
+<label>Agency preset name</label>
+<input type="text" name="agency_name" value="Primary Agency" placeholder="Example: AMR San Diego">
+
+<label>PulsePoint agency ID(s)</label>
+<input type="text" name="agency_ids" value="{html_escape(cfg.get('agency_ids', ''))}" placeholder="Example: 37047 or 37047,12345">
+<small>Use the number after <code>?agencies=</code> in the PulsePoint Web URL.</small>
+
+<h3>Step 2: Apparatus / Unit Set</h3>
+<label>Unit set name</label>
+<input type="text" name="unit_name" value="Primary Unit" placeholder="Example: M231 Shift">
+
+<label>Units to monitor</label>
+<input type="text" name="units" value="{html_escape(units_display(cfg.get('units', [])))}" placeholder="Example: M231, M36, E36">
+<small>Comma-separated. Example: <code>M231</code> or <code>M231, M232</code>.</small>
+
+<h3>Step 3: Basic Monitor Settings</h3>
+<label>Poll interval, seconds</label>
+<input type="number" name="poll_seconds" value="{cfg.get('poll_seconds', 5)}" min="5" max="60">
+
+<label><input type="checkbox" name="test_mode" checked> Start in test mode</label>
+<small>Recommended for first setup. Test mode alerts on any new PulsePoint page activity/change.</small>
+
+<label><input type="checkbox" name="prevent_sleep" checked> Prevent Windows sleep while monitor is running</label>
+
+<div class="button-row">
+<button type="submit">Save First-Run Setup</button>
+</div>
+</form>
+</div>
+
+<div class="card">
+<h3>After saving</h3>
+<ol>
+<li>Go to <strong>Alerts</strong> and test laptop/phone alerts.</li>
+<li>Leave test mode on until you confirm a real page activity trigger works.</li>
+<li>Then turn test mode off and monitor your real unit list.</li>
+</ol>
+</div>
+"""
+        return layout("First-Run Setup", content)
+
+
+    @app.route("/first-run/save", methods=["POST"])
+    def save_first_run() -> Response:
+        cfg = load_config()
+
+        agency_name = request.form.get("agency_name", "Primary Agency").strip() or "Primary Agency"
+        agency_ids = request.form.get("agency_ids", "").strip()
+        unit_name = request.form.get("unit_name", "Primary Unit").strip() or "Primary Unit"
+        units = normalize_units(request.form.get("units", ""))
+
+        if not agency_ids:
+            state.log("First-run setup not saved: agency ID(s) required.")
+            return redirect("/first-run")
+
+        if not units:
+            state.log("First-run setup not saved: at least one unit is required.")
+            return redirect("/first-run")
+
+        cfg["agency_ids"] = agency_ids
+        cfg["units"] = units
+        cfg["poll_seconds"] = max(5, int(request.form.get("poll_seconds", 5)))
+        cfg["test_mode"] = bool(request.form.get("test_mode"))
+        cfg["prevent_sleep"] = bool(request.form.get("prevent_sleep"))
+
+        agency_presets = cfg.get("agency_presets", [])
+        agency_presets = [
+            p for p in agency_presets
+            if p.get("name") != agency_name and p.get("agency_ids") != agency_ids
+        ]
+        agency_presets.append({"name": agency_name, "agency_ids": agency_ids})
+        cfg["agency_presets"] = agency_presets[-50:]
+
+        unit_presets = cfg.get("unit_presets", [])
+        unit_key = ",".join(units)
+        unit_presets = [
+            p for p in unit_presets
+            if p.get("name") != unit_name and ",".join(p.get("units", [])) != unit_key
+        ]
+        unit_presets.append({"name": unit_name, "units": units})
+        cfg["unit_presets"] = unit_presets[-50:]
+
+        save_config(cfg)
+        state.log("First-run setup saved.")
+        return redirect("/alerts")
+
+
 
     @app.route("/agencies")
     def agencies_page() -> Response:

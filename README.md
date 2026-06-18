@@ -20,11 +20,16 @@ A local backup alerting tool that watches PulsePoint Respond for Web and alerts 
 - ntfy urgent push support.
 - Local web UI at `http://127.0.0.1:8765`.
 - Saved agency and unit presets.
+- First-run setup wizard.
+- Installer copies the default alert sound into the runtime config folder.
+- App version is shown in the UI.
 
 ## Quick start - Windows
 
+From a cloned copy of this repository:
+
 ```powershell
-cd C:\pulsepoint-alert
+cd C:\Users\Shane\Documents\GitHub\pulsepoint-alerts
 .\installers\windows\install.bat
 .\installers\windows\start.bat
 ```
@@ -34,6 +39,48 @@ Then open:
 ```text
 http://127.0.0.1:8765
 ```
+
+The Windows installer prepares the runtime folder:
+
+```text
+C:\pulsepoint-alert
+```
+
+and copies the default alert sound to:
+
+```text
+C:\pulsepoint-alert\alert.wav
+```
+
+## First-Run Setup Wizard
+
+The app includes a first-run setup wizard at:
+
+```text
+http://127.0.0.1:8765/first-run
+```
+
+Use it to configure the minimum required settings:
+
+1. Agency/feed name
+2. PulsePoint agency ID(s)
+3. Unit set name
+4. Unit IDs to monitor
+5. Poll interval
+6. Test mode
+7. Sleep prevention
+
+After saving the wizard, configure laptop and phone alerts from the Alerts page.
+
+## Normal use
+
+1. Start the app.
+2. Open the local web interface.
+3. Configure agencies and unit sets.
+4. Configure laptop and phone alerts.
+5. Use test mode to confirm the alert path.
+6. Turn test mode off for normal unit-watch mode.
+7. Start the monitor.
 
 ## Development start
 
