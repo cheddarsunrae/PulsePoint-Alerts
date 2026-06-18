@@ -33,3 +33,18 @@ Then open:
 ```text
 http://127.0.0.1:8765
 ```
+
+## Documentation and Roadmap Updates
+
+When making user-visible changes, update the relevant documentation in the same commit or pull request.
+
+Check:
+
+- README.md
+- ROADMAP.md
+- docs/
+- docs/development-checklist.md
+- installer documentation
+- troubleshooting notes
+
+Roadmap items should be marked complete, deferred, or updated as the project evolves.
