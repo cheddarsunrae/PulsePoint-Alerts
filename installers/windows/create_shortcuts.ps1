@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
+$RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $StartBat = Join-Path $RepoRoot "installers\windows\start.bat"
 $IconPath = Join-Path $RepoRoot "src\pulsepoint_alerts\static\app.ico"
 
@@ -77,3 +77,4 @@ if ($StartAtLogin) {
 }
 
 Write-Host "Done."
+
