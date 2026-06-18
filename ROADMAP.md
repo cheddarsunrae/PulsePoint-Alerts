@@ -225,3 +225,10 @@ The top status bar now resolves active agency ID(s) to a saved agency preset nam
 Status: implemented.
 
 The dashboard, config summary, and top status bar now resolve active agency ID(s) and active unit lists to saved preset names when available.
+
+
+## Monitor Health Heartbeat
+
+Status: implemented.
+
+The UI now reports last check time, last success time, last refresh time, consecutive error count, last error, and Active-section detection status. Diagnostics export also includes these fields.

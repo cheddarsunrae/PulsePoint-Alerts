@@ -25,6 +25,12 @@ class RuntimeState:
     alert_reason: str = ""
     log_lines: list[str] = field(default_factory=list)
     alert_events: list[dict[str, str]] = field(default_factory=list)
+    last_check_time: str = ""
+    last_success_time: str = ""
+    last_refresh_time: str = ""
+    last_error: str = ""
+    consecutive_errors: int = 0
+    active_section_found: bool = False
 
     def alert_history_path(self) -> Path:
         return app_dir() / "alert_history.json"
@@ -63,6 +69,32 @@ class RuntimeState:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Loaded {len(events[-HISTORY_LIMIT:])} alert history events.", flush=True)
         except Exception as exc:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert history load error: {exc}", flush=True)
+
+
+    def mark_check(self) -> None:
+        with self.lock:
+            self.last_check_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+    def mark_success(self, active_section_found: bool | None = None) -> None:
+        with self.lock:
+            self.last_success_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.consecutive_errors = 0
+            self.last_error = ""
+            if active_section_found is not None:
+                self.active_section_found = active_section_found
+
+
+    def mark_refresh(self) -> None:
+        with self.lock:
+            self.last_refresh_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+    def mark_error(self, message: str) -> None:
+        with self.lock:
+            self.last_error = str(message)
+            self.consecutive_errors += 1
+
 
     def log(self, message: str) -> None:
         line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}"

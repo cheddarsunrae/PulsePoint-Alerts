@@ -287,3 +287,19 @@ Examples:
     Units: E36, M231 (Station 36 / Jamul set)
 
 If no saved preset matches, the app displays the raw agency ID(s) or unit list.
+
+
+## Monitor Health Heartbeat
+
+The dashboard and top status bar include monitor-health fields so the user can tell whether the monitor is actively checking PulsePoint.
+
+Displayed health fields include:
+
+- Last check time
+- Last successful check time
+- Last page refresh time
+- Consecutive error count
+- Last error
+- Whether the Active section was found during the latest successful unit-mode scan
+
+These fields are also included in the diagnostics ZIP.

@@ -155,10 +155,12 @@ def monitor_loop(state: RuntimeState) -> None:
                     unit_re = build_unit_regex(units)
 
                     text = page.locator("body").inner_text(timeout=10000)
+                    state.mark_check()
                     upper_text = text.upper()
                     now = time.time()
 
                     if test_mode:
+                        state.mark_success(None)
                         current_hash = page_hash(upper_text)
                         if baseline_hash is None:
                             baseline_hash = current_hash
@@ -172,6 +174,8 @@ def monitor_loop(state: RuntimeState) -> None:
                         found_units: set[str] = set()
                         active_signatures: dict[str, str] = {}
                         active_text = active_section_text(text)
+                        active_section_found = active_text is not None
+                        state.mark_success(active_section_found)
 
                         if active_text is None:
                             state.log(
@@ -229,6 +233,7 @@ def monitor_loop(state: RuntimeState) -> None:
                     if now - last_refresh >= refresh_seconds:
                         page.reload(wait_until="domcontentloaded", timeout=60000)
                         page.wait_for_timeout(5000)
+                        state.mark_refresh()
                         last_refresh = now
                         state.log("PulsePoint page refreshed.")
 
@@ -236,11 +241,13 @@ def monitor_loop(state: RuntimeState) -> None:
 
                 except Exception as exc:
                     state.log(f"Monitor error: {exc}. Reloading page.")
+                    state.mark_error(str(exc))
                     try:
                         page.reload(wait_until="domcontentloaded", timeout=60000)
                         page.wait_for_timeout(5000)
                     except Exception as reload_error:
                         state.log(f"Reload failed: {reload_error}")
+                        state.mark_error(f"Reload failed: {reload_error}")
                     time.sleep(max(5, int(load_config().get("poll_seconds", 5))))
 
             browser.close()

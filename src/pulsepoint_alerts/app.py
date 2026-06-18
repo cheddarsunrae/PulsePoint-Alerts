@@ -117,6 +117,12 @@ def layout(title: str, content: str) -> Response:
         running_text = "RUNNING" if state.monitor_running else "STOPPED"
         active_text = "ACTIVE" if state.alert_active else "INACTIVE"
         reason = state.alert_reason
+        last_check_time = state.last_check_time or "never"
+        last_success_time = state.last_success_time or "never"
+        last_refresh_time = state.last_refresh_time or "never"
+        last_error = state.last_error
+        consecutive_errors = state.consecutive_errors
+        active_section_status = "found" if state.active_section_found else "not found"
     active_agency = html_escape(agency_display(cfg))
     active_units = html_escape(unit_set_display(cfg))
     mode = "TEST" if cfg.get("test_mode") else "UNIT"
@@ -173,7 +179,7 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .help-tip:hover .help-text, .help-tip:focus .help-text {{ visibility: visible; opacity: 1; }}
 </style></head>
 <body><header><h1>PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
-<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units}</div>
+<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Last Check:</strong> {html_escape(last_check_time)} | <strong>Errors:</strong> {consecutive_errors}</div>
 {alert_controls}<main>{content}</main></body></html>""", mimetype="text/html")
 
 
@@ -211,6 +217,7 @@ def create_app() -> Flask:
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
+<div class="card"><h3>Monitor Health</h3><p><strong>Last check:</strong> {html_escape(last_check_time)}</p><p><strong>Last success:</strong> {html_escape(last_success_time)}</p><p><strong>Last refresh:</strong> {html_escape(last_refresh_time)}</p><p><strong>Active section:</strong> {active_section_status}</p><p><strong>Consecutive errors:</strong> {consecutive_errors}</p><p><strong>Last error:</strong> {html_escape(last_error or "(none)")}</p></div>
 <div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
 <form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
 <form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>
@@ -683,6 +690,11 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
                 "alert_reason": getattr(state, "alert_reason", None),
                 "last_status": getattr(state, "last_status", None),
                 "last_error": getattr(state, "last_error", None),
+                "last_check_time": getattr(state, "last_check_time", None),
+                "last_success_time": getattr(state, "last_success_time", None),
+                "last_refresh_time": getattr(state, "last_refresh_time", None),
+                "consecutive_errors": getattr(state, "consecutive_errors", None),
+                "active_section_found": getattr(state, "active_section_found", None),
             }
             alert_history = list(getattr(state, "alert_events", []))[-200:]
 
