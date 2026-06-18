@@ -99,6 +99,7 @@ main {{ max-width: 1100px; margin: 25px auto; background: white; padding: 25px; 
 label {{ font-weight: bold; display: block; margin-top: 14px; }}
 input[type=text], input[type=password], input[type=number], select {{ width: 100%; padding: 9px; font-size: 16px; box-sizing: border-box; }}
 button {{ padding: 10px 16px; font-size: 15px; margin: 6px 6px 6px 0; cursor: pointer; border-radius: 6px; border: 1px solid #999; }}
+button:disabled {{ background: #c9c9c9 !important; color: #666 !important; border-color: #aaa !important; cursor: not-allowed; opacity: 0.75; }}
 .btn-start {{ background: #28a745; color: white; border-color: #1e7e34; font-weight: bold; }}
 .btn-start:hover {{ background: #218838; }}
 .btn-stop {{ background: #dc3545; color: white; border-color: #bd2130; font-weight: bold; }}
@@ -140,6 +141,10 @@ def create_app() -> Flask:
     def dashboard() -> Response:
         cfg = load_config()
         logs = state.logs(60)
+        with state.lock:
+            monitor_running = state.monitor_running
+        start_disabled = "disabled" if monitor_running else ""
+        stop_disabled = "" if monitor_running else "disabled"
         first_run_html = ""
         if not cfg.get("agency_ids") or not cfg.get("units"):
             first_run_html = """
@@ -158,8 +163,8 @@ def create_app() -> Flask:
 <p><strong>Units:</strong> <code>{html_escape(units_display(cfg.get('units')) or '(none)')}</code></p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
-<div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start">Start Monitor</button></form>
-<form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop">Stop Monitor</button></form>
+<div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
+<form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
 <form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>
 <form method="post" action="/test-sound"><button type="submit" class="btn-test">Test Laptop Alert</button></form>
 <form method="post" action="/test-push"><button type="submit" class="btn-phone">Test Phone Push</button></form></div></div>
