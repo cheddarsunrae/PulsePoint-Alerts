@@ -70,7 +70,9 @@ Help troubleshoot PulsePoint layout changes and parser behavior.
 
 ### 3. Persistent Alert History
 
-Currently alert history is runtime-only. Add optional persistence to disk.
+Status: local JSON persistence implemented.
+
+Alert history now persists locally to disk. Future work can add CSV export and filtering.
 
 Planned fields:
 

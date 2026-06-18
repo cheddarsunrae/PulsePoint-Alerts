@@ -134,3 +134,15 @@ The Alerts page includes a setting to control whether call details are included 
 When enabled, Pushover and/or ntfy messages may include incident details from the PulsePoint Active section. Depending on phone settings, these details may appear on the lock screen.
 
 Turn this setting off if you want phone pushes to show only that a monitored unit alert occurred without including call details.
+
+
+## Alert History Persistence
+
+Alert history is saved locally in the app runtime folder as `alert_history.json`.
+
+Default runtime locations:
+
+- Windows: `C:\pulsepoint-alert\alert_history.json`
+- macOS/Linux: `~/.pulsepoint-alerts/alert_history.json`
+
+Alert history survives app restarts and can be cleared from the History page.

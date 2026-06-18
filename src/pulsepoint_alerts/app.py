@@ -15,6 +15,7 @@ from .monitor import active_section_text, active_unit_incident_signatures, build
 from .runtime import RuntimeState
 
 state = RuntimeState()
+state.load_alert_history()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
@@ -382,7 +383,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 
         content = f"""
 <h2>Alert History</h2>
-<div class="card">
+<div class="card"><p><small>Alert history is saved locally in the app runtime folder and survives restarts.</small></p>
 <form method="post" action="/history/clear" style="display:inline">
 <button type="submit">Clear History</button>
 </form>

@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from .config import app_dir
+
+
+HISTORY_LIMIT = 500
 
 
 @dataclass
@@ -18,13 +26,50 @@ class RuntimeState:
     log_lines: list[str] = field(default_factory=list)
     alert_events: list[dict[str, str]] = field(default_factory=list)
 
+    def alert_history_path(self) -> Path:
+        return app_dir() / "alert_history.json"
+
+    def _write_alert_history(self, events: list[dict[str, str]]) -> None:
+        try:
+            path = self.alert_history_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = path.with_suffix(".json.tmp")
+            with tmp_path.open("w", encoding="utf-8") as f:
+                json.dump(events[-HISTORY_LIMIT:], f, indent=2)
+            tmp_path.replace(path)
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert history save error: {exc}", flush=True)
+
+    def load_alert_history(self) -> None:
+        try:
+            path = self.alert_history_path()
+            if not path.exists():
+                return
+            with path.open("r", encoding="utf-8") as f:
+                data: Any = json.load(f)
+            if not isinstance(data, list):
+                return
+
+            events: list[dict[str, str]] = []
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                clean = {str(k): str(v) for k, v in item.items()}
+                events.append(clean)
+
+            with self.lock:
+                self.alert_events = events[-HISTORY_LIMIT:]
+
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Loaded {len(events[-HISTORY_LIMIT:])} alert history events.", flush=True)
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert history load error: {exc}", flush=True)
+
     def log(self, message: str) -> None:
         line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}"
         print(line, flush=True)
         with self.lock:
             self.log_lines.append(line)
             del self.log_lines[:-300]
-
 
     def record_alert(
         self,
@@ -44,16 +89,26 @@ class RuntimeState:
         }
         with self.lock:
             self.alert_events.append(event)
-            del self.alert_events[:-500]
+            del self.alert_events[:-HISTORY_LIMIT]
+            snapshot = list(self.alert_events)
+
+        self._write_alert_history(snapshot)
 
     def acknowledge_latest_alert(self) -> None:
         ack_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        changed = False
+
         with self.lock:
             for event in reversed(self.alert_events):
                 if event.get("acknowledged") == "no":
                     event["acknowledged"] = "yes"
                     event["ack_time"] = ack_time
+                    changed = True
                     break
+            snapshot = list(self.alert_events)
+
+        if changed:
+            self._write_alert_history(snapshot)
 
     def alert_history(self, limit: int = 100) -> list[dict[str, str]]:
         with self.lock:
@@ -62,6 +117,8 @@ class RuntimeState:
     def clear_alert_history(self) -> None:
         with self.lock:
             self.alert_events.clear()
+
+        self._write_alert_history([])
 
     def logs(self, limit: int = 250) -> list[str]:
         with self.lock:
