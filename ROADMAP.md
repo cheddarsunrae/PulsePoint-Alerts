@@ -189,3 +189,7 @@ Goal: Stable public release.
 - Robust alert behavior.
 - User-facing safety disclaimers.
 - Clear non-affiliation language.
+
+## Process Improvements
+
+- Local documentation guard added to remind/block developers when source, installer, or test changes are staged without related documentation or roadmap updates.

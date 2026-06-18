@@ -76,3 +76,18 @@ Do not commit:
 - .venv
 - cache files
 - local-only test artifacts
+
+## Automated Documentation Guard
+
+This repository includes a local documentation guard script:
+
+- scripts/check_docs_updated.ps1
+- scripts/install_git_hooks.ps1
+
+Install the local pre-commit hook with:
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\install_git_hooks.ps1
+
+The hook blocks commits when source, installer, or test files are staged without a README, ROADMAP, CHANGELOG, CONTRIBUTING, or docs update.
+
+The hook does not automatically write documentation. It forces the developer to update documentation or make an intentional bypass.

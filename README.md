@@ -204,3 +204,13 @@ Start-at-login launches the app. To make the monitor itself start automatically 
     Auto-start monitor when app launches
 
 This setting is located on the Monitor Setup page.
+
+## Documentation Guard
+
+Developers can install a local pre-commit documentation guard:
+
+    powershell -ExecutionPolicy Bypass -File .\scripts\install_git_hooks.ps1
+
+After installation, commits that change source, installer, or test files will require a related documentation or roadmap update.
+
+This helps keep README.md, ROADMAP.md, CHANGELOG.md, CONTRIBUTING.md, and docs/ aligned with code changes.
