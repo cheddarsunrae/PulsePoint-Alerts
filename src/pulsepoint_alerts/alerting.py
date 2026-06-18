@@ -139,27 +139,93 @@ def play_alert_loop(reason: str, state: RuntimeState) -> None:
         state.alert_reason = reason
     state.log(f"ALERT ACTIVE: {reason}")
     started = time.time()
-    while not state.alert_stop.is_set():
-        if alert_mode != "until_ack" and time.time() - started >= duration:
-            break
-        _play_sound_once(sound_file, state)
-        time.sleep(0.25)
+
+    if os.name == "nt":
+        import winsound
+        try:
+            winsound.PlaySound(
+                sound_file,
+                winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_LOOP,
+            )
+            while not state.alert_stop.is_set():
+                if alert_mode != "until_ack" and time.time() - started >= duration:
+                    break
+                time.sleep(0.25)
+        except Exception as exc:
+            state.log(f"Sound error: {exc}")
+            try:
+                winsound.Beep(1000, 1000)
+            except Exception:
+                pass
+        finally:
+            try:
+                winsound.PlaySound(None, winsound.SND_PURGE)
+            except Exception:
+                pass
+    else:
+        while not state.alert_stop.is_set():
+            if alert_mode != "until_ack" and time.time() - started >= duration:
+                break
+            _play_sound_once(sound_file, state)
+            time.sleep(0.25)
+
     with state.lock:
         state.alert_active = False
         state.alert_reason = ""
     state.log("Alert silenced.")
 
 
-def trigger_alert(reason: str, state: RuntimeState) -> None:
+def trigger_desktop_alert(reason: str, state: RuntimeState) -> None:
+    """Trigger only the local desktop/laptop audible alert."""
     with state.lock:
         if state.alert_active:
-            state.log(f"Alert already active. Additional trigger ignored: {reason}")
+            state.log(f"Alert already active. Additional desktop test ignored: {reason}")
             return
-    send_phone_push_for_alert(reason, state)
+        state.alert_active = True
+        state.alert_reason = reason
     state.alert_stop.clear()
     thread = threading.Thread(target=play_alert_loop, args=(reason, state), daemon=True)
     thread.start()
 
 
+def trigger_alert(reason: str, state: RuntimeState) -> None:
+    cfg = load_config()
+    desktop_enabled = bool(cfg.get("desktop_alert_enabled", True))
+    phone_enabled = bool(cfg.get("phone_alert_enabled", True))
+
+    if not desktop_enabled and not phone_enabled:
+        state.log(f"Alert triggered but all alert channels are disabled: {reason}")
+        return
+
+    if desktop_enabled:
+        with state.lock:
+            if state.alert_active:
+                state.log(f"Alert already active. Additional trigger ignored: {reason}")
+                return
+            state.alert_active = True
+            state.alert_reason = reason
+
+    if phone_enabled:
+        send_phone_push_for_alert(reason, state)
+    else:
+        state.log("Phone push skipped: phone alert channel disabled.")
+
+    if desktop_enabled:
+        state.alert_stop.clear()
+        thread = threading.Thread(target=play_alert_loop, args=(reason, state), daemon=True)
+        thread.start()
+    else:
+        state.log("Desktop/laptop alert skipped: desktop alert channel disabled.")
+
+
 def silence_alert(state: RuntimeState) -> None:
     state.alert_stop.set()
+    with state.lock:
+        state.alert_active = False
+        state.alert_reason = ""
+    if os.name == "nt":
+        try:
+            import winsound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+        except Exception:
+            pass

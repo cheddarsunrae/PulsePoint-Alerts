@@ -15,6 +15,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "test_mode": False,
     "alert_mode": "until_ack",
     "alert_duration_seconds": 30,
+    "desktop_alert_enabled": True,
+    "phone_alert_enabled": True,
     "cooldown_seconds": 60,
     "refresh_seconds": 300,
     "headless": True,
