@@ -6,6 +6,7 @@ import threading
 
 from flask import Flask, Response, redirect, request
 
+from . import __version__
 from .alerting import send_ntfy, send_pushover, silence_alert, trigger_alert
 from .config import load_config, normalize_units, save_config
 from .keepawake import set_keep_awake
@@ -72,7 +73,7 @@ pre {{ background: #111; color: #0f0; padding: 15px; height: 400px; overflow-y: 
 code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }} th, td {{ border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }}
 .statusbar {{ background: #eee; padding: 10px 20px; font-size: 14px; }}
 </style></head>
-<body><header><h1>PulsePoint Alert Monitor</h1></header>{nav()}
+<body><header><h1>PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
 <div class="statusbar"><strong>Monitor:</strong> {running_text} | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> {active_text} {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units}</div>
 <main>{content}</main></body></html>""", mimetype="text/html")
 
@@ -233,4 +234,6 @@ def main() -> None:
     state.log("PulsePoint Alert App started.")
     state.log("Open http://127.0.0.1:8765")
     create_app().run(host="127.0.0.1", port=8765, debug=False)
+
+
 
