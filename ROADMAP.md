@@ -211,3 +211,10 @@ Status: implemented.
 Added tests for Active/Recent section separation, monitored-unit detection, signature normalization, and call-detail summary cleanup.
 
 The live monitor navigation was also changed from network-idle waits to DOM-content-loaded waits with a short settle delay to reduce hanging behavior.
+
+
+## Named Agency Status Display
+
+Status: implemented.
+
+The top status bar now resolves active agency ID(s) to a saved agency preset name when available.

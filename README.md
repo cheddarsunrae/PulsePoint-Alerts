@@ -264,3 +264,14 @@ These tests verify that:
 - repeated lines are deduplicated in call-detail summaries
 
 The live monitor uses `domcontentloaded` plus a short page-settle delay instead of waiting for full network idle, because PulsePoint can continue background network activity and cause network-idle waits to hang.
+
+
+## Named Agency Status Display
+
+The top status bar displays the active PulsePoint agency ID(s). When the active agency ID string matches a saved agency preset, the saved agency name is displayed beside the ID(s).
+
+Example:
+
+    Agency IDs: 37047 (AMR San Diego)
+
+If no saved agency preset matches the active ID string, the status bar displays the raw agency ID(s).

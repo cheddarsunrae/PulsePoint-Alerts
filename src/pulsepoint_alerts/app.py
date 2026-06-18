@@ -46,6 +46,22 @@ def units_display(units: list[str] | None) -> str:
 
 
 
+
+
+def agency_display(cfg: dict) -> str:
+    agency_ids = str(cfg.get("agency_ids", "") or "").strip()
+    if not agency_ids:
+        return "(none)"
+
+    for preset in cfg.get("agency_presets", []):
+        preset_ids = str(preset.get("agency_ids", "") or "").strip()
+        preset_name = str(preset.get("name", "") or "").strip()
+        if preset_ids == agency_ids and preset_name:
+            return f"{agency_ids} ({preset_name})"
+
+    return agency_ids
+
+
 def datetime_filename() -> str:
     from datetime import datetime
     return datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -74,7 +90,7 @@ def layout(title: str, content: str) -> Response:
         running_text = "RUNNING" if state.monitor_running else "STOPPED"
         active_text = "ACTIVE" if state.alert_active else "INACTIVE"
         reason = state.alert_reason
-    active_agency = html_escape(cfg.get("agency_ids", "") or "(none)")
+    active_agency = html_escape(agency_display(cfg))
     active_units = html_escape(units_display(cfg.get("units", [])) or "(none)")
     mode = "TEST" if cfg.get("test_mode") else "UNIT"
     status_class = "danger" if state.alert_active else "good"
