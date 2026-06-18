@@ -282,6 +282,7 @@ def create_app() -> Flask:
         last_refresh_age = age_display(last_refresh_time)
         start_disabled = "disabled" if monitor_running else ""
         stop_disabled = "" if monitor_running else "disabled"
+        manual_refresh_disabled = "" if monitor_running else "disabled"
         first_run_html = ""
         if not cfg.get("agency_ids") or not cfg.get("units"):
             first_run_html = """
@@ -305,7 +306,7 @@ def create_app() -> Flask:
 <form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
 <form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>
 <form method="post" action="/test-sound"><button type="submit" class="btn-test">Test Laptop Alert</button></form>
-<form method="post" action="/test-push"><button type="submit" class="btn-phone">Test Phone Push</button></form></div></div>
+<form method="post" action="/test-push"><button type="submit" class="btn-phone">Test Phone Push</button></form><form method="post" action="/refresh-now" style="display:inline"><button type="submit" class="btn-phone" {manual_refresh_disabled}>Refresh PulsePoint Now</button></form></div></div>
 <div class="card"><h3>Recent Log</h3><pre>{html_escape(chr(10).join(logs))}</pre></div>"""
         return layout("Dashboard", content)
 
@@ -903,6 +904,21 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         try: set_keep_awake(False)
         except Exception: pass
         state.log("Monitor stop requested."); return redirect("/")
+
+
+    @app.route("/refresh-now", methods=["POST"])
+    def refresh_now() -> Response:
+        with state.lock:
+            running = state.monitor_running
+
+        if not running:
+            state.log("Manual refresh ignored: monitor is not running.")
+            return redirect("/")
+
+        state.request_manual_refresh()
+        state.log("Manual refresh queued.")
+        return redirect("/")
+
 
     @app.route("/ack", methods=["POST"])
     def ack() -> Response:

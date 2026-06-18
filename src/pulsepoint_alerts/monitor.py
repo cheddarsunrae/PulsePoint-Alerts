@@ -154,6 +154,13 @@ def monitor_loop(state: RuntimeState) -> None:
                     test_mode = bool(cfg.get("test_mode", False))
                     unit_re = build_unit_regex(units)
 
+                    if state.consume_manual_refresh():
+                        state.log("Manual PulsePoint refresh requested.")
+                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(5000)
+                        state.mark_refresh()
+                        last_refresh = time.time()
+
                     text = page.locator("body").inner_text(timeout=10000)
                     state.mark_check()
                     upper_text = text.upper()

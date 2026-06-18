@@ -253,3 +253,10 @@ Health display now includes human-readable age text, green/yellow/red badge stat
 Status: implemented.
 
 Dashboard auto-refreshes every 10 seconds. Configuration pages intentionally do not auto-refresh to avoid losing typed settings.
+
+
+## Manual PulsePoint Refresh
+
+Status: implemented.
+
+Dashboard now has a Refresh PulsePoint Now button that queues an immediate page reload for the running monitor. The button is disabled when the monitor is stopped.

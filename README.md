@@ -326,3 +326,12 @@ The stale threshold is calculated from the configured poll interval.
 The Dashboard auto-refreshes every 10 seconds so monitor health, last-check time, error count, and status badges stay current without manual browser refresh.
 
 Configuration pages do not auto-refresh. This prevents losing typed settings while editing agencies, units, alerts, or config values.
+
+
+## Manual PulsePoint Refresh
+
+The Dashboard includes a **Refresh PulsePoint Now** button.
+
+This button requests an immediate reload of the PulsePoint page on the next monitor cycle. It does not restart the monitor and does not change configuration.
+
+The button is disabled when the monitor is stopped.

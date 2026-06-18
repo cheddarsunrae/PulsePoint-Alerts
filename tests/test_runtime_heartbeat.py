@@ -30,3 +30,12 @@ def test_runtime_state_records_refresh_time():
     state.mark_refresh()
 
     assert state.last_refresh_time
+
+def test_runtime_state_manual_refresh_request_is_consumed_once():
+    state = RuntimeState()
+
+    state.request_manual_refresh()
+
+    assert state.consume_manual_refresh() is True
+    assert state.consume_manual_refresh() is False
+

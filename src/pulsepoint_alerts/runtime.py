@@ -31,6 +31,7 @@ class RuntimeState:
     last_error: str = ""
     consecutive_errors: int = 0
     active_section_found: bool = False
+    manual_refresh_requested: bool = False
 
     def alert_history_path(self) -> Path:
         return app_dir() / "alert_history.json"
@@ -69,6 +70,19 @@ class RuntimeState:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Loaded {len(events[-HISTORY_LIMIT:])} alert history events.", flush=True)
         except Exception as exc:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert history load error: {exc}", flush=True)
+
+
+
+    def request_manual_refresh(self) -> None:
+        with self.lock:
+            self.manual_refresh_requested = True
+
+
+    def consume_manual_refresh(self) -> bool:
+        with self.lock:
+            requested = self.manual_refresh_requested
+            self.manual_refresh_requested = False
+            return requested
 
 
     def mark_check(self) -> None:
