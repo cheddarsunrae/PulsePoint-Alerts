@@ -85,7 +85,7 @@ def create_app() -> Flask:
         cfg = load_config()
         logs = state.logs(60)
         content = f"""
-<h2>Dashboard</h2><div class="warn">Backup alert only. Do not rely on this as your sole dispatch notification.</div>
+<h2>Dashboard</h2><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
 <p><strong>Agency IDs:</strong> <code>{html_escape(cfg.get('agency_ids') or '(none)')}</code></p>
 <p><strong>Units:</strong> <code>{html_escape(units_display(cfg.get('units')) or '(none)')}</code></p>
@@ -233,3 +233,4 @@ def main() -> None:
     state.log("PulsePoint Alert App started.")
     state.log("Open http://127.0.0.1:8765")
     create_app().run(host="127.0.0.1", port=8765, debug=False)
+

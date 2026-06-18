@@ -3,6 +3,8 @@ Copyright 2026 Cheddar SunRae Logistics Inc.
 
 This product includes software developed by contributors to the PulsePoint Alert Monitor project.
 
-PulsePoint is a trademark/service operated by the PulsePoint Foundation. This project is not affiliated with, endorsed by, sponsored by, or approved by PulsePoint Foundation.
+This project is not affiliated with, endorsed by, sponsored by, or approved by PulsePoint Foundation, PulsePoint Respond, or any public safety agency. “PulsePoint” and related names may be trademarks or service marks of their respective owners.
 
-This software is a supplemental awareness and backup alerting aid only. It is not an official dispatch system, pager, CAD terminal, radio, MDT, station alerting system, or life-safety system.
+PulsePoint Alert Monitor is a supplemental awareness and backup alerting aid only. It is not an official dispatch system, pager, CAD terminal, radio, MDT, station alerting system, or life-safety system.
+
+This software is provided “as is,” without warranty of any kind. The authors, maintainers, contributors, and affiliated entities are not responsible for missed calls, delayed responses, operational errors, injury, death, data loss, device malfunction, notification failure, employment consequences, disciplinary action, or any other damages or bad outcomes arising from use or misuse of this software.
