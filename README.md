@@ -214,3 +214,22 @@ Developers can install a local pre-commit documentation guard:
 After installation, commits that change source, installer, or test files will require a related documentation or roadmap update.
 
 This helps keep README.md, ROADMAP.md, CHANGELOG.md, CONTRIBUTING.md, and docs/ aligned with code changes.
+
+
+## Config Backup, Import, and Reset
+
+The Config page provides local configuration management.
+
+Available actions:
+
+- Export Full Config JSON
+- Export Redacted Config JSON
+- Import Config JSON
+- Reset Config to Defaults
+- View the active config file path
+
+Full config exports may include sensitive values such as Pushover keys or ntfy tokens. Store full exports securely.
+
+Use redacted exports for troubleshooting or sharing because token/key fields are replaced with `REDACTED`.
+
+Resetting config does not delete alert history.

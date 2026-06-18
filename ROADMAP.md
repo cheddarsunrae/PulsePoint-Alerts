@@ -105,6 +105,8 @@ Add optional Windows startup integration:
 
 ### 6. Config Export / Import
 
+Status: implemented full export, redacted export, import, reset, and config path display.
+
 Add UI controls for:
 
 - Export config

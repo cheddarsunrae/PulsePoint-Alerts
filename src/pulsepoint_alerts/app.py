@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import csv
 import io
 import threading
@@ -11,7 +12,7 @@ from flask import Flask, Response, redirect, request, send_from_directory
 
 from . import __version__
 from .alerting import send_ntfy, send_pushover, silence_alert, trigger_alert, trigger_desktop_alert
-from .config import load_config, normalize_units, save_config
+from .config import DEFAULT_CONFIG, asset_default_sound, config_path, load_config, normalize_units, save_config
 from .keepawake import set_keep_awake
 from .monitor import active_section_text, active_unit_incident_signatures, build_unit_regex, monitor_loop
 from .runtime import RuntimeState
@@ -58,6 +59,7 @@ def nav() -> str:
 <a href="/alerts">Alerts</a>
 <a href="/history">History</a>
 <a href="/debug/active">Active Debug</a>
+<a href="/config">Config</a>
 <a href="/logs">Logs</a>
 </nav>
 """
@@ -546,6 +548,131 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 </div>
 """
             return layout("Active Incident Debug", content)
+
+
+
+    @app.route("/config")
+    def config_page() -> Response:
+        cfg = load_config()
+        path = config_path()
+        content = f"""
+<h2>Config Backup / Import / Reset</h2>
+
+<div class="warn">
+<strong>Warning:</strong> Full config exports may include Pushover keys, ntfy tokens, agency IDs, unit IDs, and other sensitive settings. Store full backups securely.
+</div>
+
+<div class="card">
+<h3>Config File</h3>
+<p><strong>Path:</strong> <code>{html_escape(path)}</code></p>
+</div>
+
+<div class="card">
+<h3>Export</h3>
+<p>Use full export for personal backup/restore. Use redacted export for troubleshooting or sharing.</p>
+<a href="/config/export"><button type="button">Export Full Config JSON</button></a>
+<a href="/config/export-redacted"><button type="button">Export Redacted Config JSON</button></a>
+</div>
+
+<div class="card">
+<h3>Import</h3>
+<form method="post" action="/config/import" enctype="multipart/form-data">
+<label>Config JSON file</label>
+<input type="file" name="config_file" accept=".json,application/json">
+<br>
+<button type="submit">Import Config</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Reset</h3>
+<p>This resets the app config to defaults. It does not delete alert history.</p>
+<form method="post" action="/config/reset">
+<button type="submit" class="btn-stop">Reset Config to Defaults</button>
+</form>
+</div>
+
+<div class="card">
+<h3>Current Non-Secret Summary</h3>
+<table>
+<tr><th>Setting</th><th>Value</th></tr>
+<tr><td>Agency IDs</td><td><code>{html_escape(cfg.get("agency_ids", ""))}</code></td></tr>
+<tr><td>Units</td><td><code>{html_escape(units_display(cfg.get("units", [])))}</code></td></tr>
+<tr><td>Desktop alert</td><td>{'ON' if cfg.get('desktop_alert_enabled') else 'OFF'}</td></tr>
+<tr><td>Phone alert</td><td>{'ON' if cfg.get('phone_alert_enabled') else 'OFF'}</td></tr>
+<tr><td>Push provider</td><td><code>{html_escape(cfg.get("push_provider", ""))}</code></td></tr>
+<tr><td>Include call details in phone push</td><td>{'ON' if cfg.get('include_call_details_in_phone_push') else 'OFF'}</td></tr>
+<tr><td>Auto-start monitor</td><td>{'ON' if cfg.get('auto_start_monitor') else 'OFF'}</td></tr>
+<tr><td>Prevent sleep</td><td>{'ON' if cfg.get('prevent_sleep') else 'OFF'}</td></tr>
+</table>
+</div>
+"""
+        return layout("Config", content)
+
+
+    def redacted_config(cfg: dict) -> dict:
+        redacted = dict(cfg)
+        secret_fields = [
+            "pushover_app_token",
+            "pushover_user_key",
+            "ntfy_token",
+        ]
+        for field in secret_fields:
+            if redacted.get(field):
+                redacted[field] = "REDACTED"
+        return redacted
+
+
+    @app.route("/config/export")
+    def export_config() -> Response:
+        cfg = load_config()
+        body = json.dumps(cfg, indent=2)
+        response = Response(body, mimetype="application/json")
+        response.headers["Content-Disposition"] = f'attachment; filename="pulsepoint_config_full_{datetime_filename()}.json"'
+        state.log("Full config exported.")
+        return response
+
+
+    @app.route("/config/export-redacted")
+    def export_redacted_config() -> Response:
+        cfg = redacted_config(load_config())
+        body = json.dumps(cfg, indent=2)
+        response = Response(body, mimetype="application/json")
+        response.headers["Content-Disposition"] = f'attachment; filename="pulsepoint_config_redacted_{datetime_filename()}.json"'
+        state.log("Redacted config exported.")
+        return response
+
+
+    @app.route("/config/import", methods=["POST"])
+    def import_config() -> Response:
+        uploaded = request.files.get("config_file")
+        if uploaded is None or not uploaded.filename:
+            state.log("Config import failed: no file selected.")
+            return redirect("/config")
+
+        try:
+            data = json.load(uploaded.stream)
+            if not isinstance(data, dict):
+                raise ValueError("Config JSON root must be an object.")
+
+            if isinstance(data.get("units"), str):
+                data["units"] = normalize_units(data["units"])
+
+            save_config(data)
+            state.log(f"Config imported from {uploaded.filename}.")
+        except Exception as exc:
+            state.log(f"Config import failed: {exc}")
+
+        return redirect("/config")
+
+
+    @app.route("/config/reset", methods=["POST"])
+    def reset_config() -> Response:
+        cfg = DEFAULT_CONFIG.copy()
+        cfg["sound_file"] = asset_default_sound()
+        save_config(cfg)
+        state.log("Config reset to defaults.")
+        return redirect("/config")
 
 
     @app.route("/logs")
