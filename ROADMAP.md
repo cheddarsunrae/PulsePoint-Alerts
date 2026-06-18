@@ -232,3 +232,10 @@ The dashboard, config summary, and top status bar now resolve active agency ID(s
 Status: implemented.
 
 The UI now reports last check time, last success time, last refresh time, consecutive error count, last error, and Active-section detection status. Diagnostics export also includes these fields.
+
+
+## Dashboard heartbeat scope fix
+
+Status: implemented.
+
+Fixed dashboard rendering so monitor-health variables are defined inside the dashboard view as well as the shared layout.

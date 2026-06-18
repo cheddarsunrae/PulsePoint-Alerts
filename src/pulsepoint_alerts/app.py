@@ -197,6 +197,12 @@ def create_app() -> Flask:
         logs = state.logs(60)
         with state.lock:
             monitor_running = state.monitor_running
+            last_check_time = state.last_check_time or "never"
+            last_success_time = state.last_success_time or "never"
+            last_refresh_time = state.last_refresh_time or "never"
+            last_error = state.last_error
+            consecutive_errors = state.consecutive_errors
+            active_section_status = "found" if state.active_section_found else "not found"
         start_disabled = "disabled" if monitor_running else ""
         stop_disabled = "" if monitor_running else "disabled"
         first_run_html = ""
