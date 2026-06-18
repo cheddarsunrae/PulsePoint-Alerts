@@ -303,3 +303,19 @@ Displayed health fields include:
 - Whether the Active section was found during the latest successful unit-mode scan
 
 These fields are also included in the diagnostics ZIP.
+
+
+## Human-Readable Monitor Health
+
+The monitor-health display uses human-readable age text and color-coded health badges.
+
+Health states:
+
+- STOPPED: monitor is not running
+- WAITING: monitor is running but no successful check has completed yet
+- HEALTHY: recent successful check and no consecutive errors
+- DEGRADED: one or two consecutive errors
+- ERROR: three or more consecutive errors
+- STALE: last successful check is older than the stale threshold
+
+The stale threshold is calculated from the configured poll interval.

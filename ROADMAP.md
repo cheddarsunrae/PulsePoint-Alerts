@@ -239,3 +239,10 @@ The UI now reports last check time, last success time, last refresh time, consec
 Status: implemented.
 
 Fixed dashboard rendering so monitor-health variables are defined inside the dashboard view as well as the shared layout.
+
+
+## Human-Readable Monitor Health
+
+Status: implemented.
+
+Health display now includes human-readable age text, green/yellow/red badge states, and stale-monitor detection based on poll interval.

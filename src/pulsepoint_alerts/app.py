@@ -94,6 +94,73 @@ def datetime_filename() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+
+
+def timestamp_age_seconds(timestamp: str) -> int | None:
+    if not timestamp or timestamp == "never":
+        return None
+
+    try:
+        from datetime import datetime
+        parsed = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        age = int((datetime.now() - parsed).total_seconds())
+        return max(0, age)
+    except Exception:
+        return None
+
+
+def age_display(timestamp: str) -> str:
+    age = timestamp_age_seconds(timestamp)
+    if age is None:
+        return "never"
+
+    if age < 60:
+        return f"{age} sec ago"
+
+    minutes = age // 60
+    if minutes < 60:
+        return f"{minutes} min ago"
+
+    hours = minutes // 60
+    minutes = minutes % 60
+    if hours < 24:
+        if minutes:
+            return f"{hours} hr {minutes} min ago"
+        return f"{hours} hr ago"
+
+    days = hours // 24
+    hours = hours % 24
+    if hours:
+        return f"{days} day {hours} hr ago"
+    return f"{days} day ago"
+
+
+def monitor_health_label(
+    monitor_running: bool,
+    last_success_time: str,
+    consecutive_errors: int,
+    poll_seconds: int,
+) -> tuple[str, str]:
+    if not monitor_running:
+        return "STOPPED", "status-stopped"
+
+    if consecutive_errors >= 3:
+        return "ERROR", "status-alert-active"
+
+    if consecutive_errors > 0:
+        return "DEGRADED", "status-warn"
+
+    age = timestamp_age_seconds(last_success_time)
+    if age is None:
+        return "WAITING", "status-warn"
+
+    stale_after = max((poll_seconds * 2) + 10, 30)
+    if age > stale_after:
+        return "STALE", "status-alert-active"
+
+    return "HEALTHY", "status-running"
+
+
 def nav() -> str:
     return """
 <nav>
@@ -128,6 +195,10 @@ def layout(title: str, content: str) -> Response:
     mode = "TEST" if cfg.get("test_mode") else "UNIT"
     status_class = "danger" if state.alert_active else "good"
     monitor_class = "status-running" if state.monitor_running else "status-stopped"
+    health_label, health_class = monitor_health_label(state.monitor_running, last_success_time, consecutive_errors, int(cfg.get("poll_seconds", 5)))
+    last_check_age = age_display(last_check_time)
+    last_success_age = age_display(last_success_time)
+    last_refresh_age = age_display(last_refresh_time)
     alert_class = "status-alert-active" if state.alert_active else "status-alert-inactive"
     alert_controls = ""
     if state.alert_active:
@@ -172,6 +243,7 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .status-pill {{ display: inline-block; padding: 3px 8px; border-radius: 999px; font-weight: bold; }}
 .status-running {{ background: #d4edda; color: #155724; border: 1px solid #28a745; }}
 .status-stopped {{ background: #f8d7da; color: #721c24; border: 1px solid #dc3545; }}
+.status-warn {{ background: #fff3cd; color: #856404; border: 1px solid #ffc107; }}
 .status-alert-active {{ background: #f8d7da; color: #721c24; border: 1px solid #dc3545; }}
 .status-alert-inactive {{ background: #d4edda; color: #155724; border: 1px solid #28a745; }}
 .help-tip {{ position: relative; display: inline-block; margin-left: 6px; background: #444; color: #fff; border-radius: 50%; width: 18px; height: 18px; line-height: 18px; text-align: center; font-size: 12px; cursor: help; }}
@@ -179,7 +251,7 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .help-tip:hover .help-text, .help-tip:focus .help-text {{ visibility: visible; opacity: 1; }}
 </style></head>
 <body><header><h1>PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
-<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Last Check:</strong> {html_escape(last_check_time)} | <strong>Errors:</strong> {consecutive_errors}</div>
+<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span> | <strong>Last Check:</strong> {html_escape(last_check_age)} | <strong>Errors:</strong> {consecutive_errors}</div>
 {alert_controls}<main>{content}</main></body></html>""", mimetype="text/html")
 
 
@@ -203,6 +275,10 @@ def create_app() -> Flask:
             last_error = state.last_error
             consecutive_errors = state.consecutive_errors
             active_section_status = "found" if state.active_section_found else "not found"
+        dashboard_health_label, dashboard_health_class = monitor_health_label(monitor_running, last_success_time, consecutive_errors, int(cfg.get("poll_seconds", 5)))
+        last_check_age = age_display(last_check_time)
+        last_success_age = age_display(last_success_time)
+        last_refresh_age = age_display(last_refresh_time)
         start_disabled = "disabled" if monitor_running else ""
         stop_disabled = "" if monitor_running else "disabled"
         first_run_html = ""
@@ -223,7 +299,7 @@ def create_app() -> Flask:
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
-<div class="card"><h3>Monitor Health</h3><p><strong>Last check:</strong> {html_escape(last_check_time)}</p><p><strong>Last success:</strong> {html_escape(last_success_time)}</p><p><strong>Last refresh:</strong> {html_escape(last_refresh_time)}</p><p><strong>Active section:</strong> {active_section_status}</p><p><strong>Consecutive errors:</strong> {consecutive_errors}</p><p><strong>Last error:</strong> {html_escape(last_error or "(none)")}</p></div>
+<div class="card"><h3>Monitor Health</h3><p><strong>Health:</strong> <span class="status-pill {dashboard_health_class}">{dashboard_health_label}</span></p><p><strong>Last check:</strong> {html_escape(last_check_age)} <small>({html_escape(last_check_time)})</small></p><p><strong>Last success:</strong> {html_escape(last_success_age)} <small>({html_escape(last_success_time)})</small></p><p><strong>Last refresh:</strong> {html_escape(last_refresh_age)} <small>({html_escape(last_refresh_time)})</small></p><p><strong>Active section:</strong> {active_section_status}</p><p><strong>Consecutive errors:</strong> {consecutive_errors}</p><p><strong>Last error:</strong> {html_escape(last_error or "(none)")}</p></div>
 <div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
 <form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
 <form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>
