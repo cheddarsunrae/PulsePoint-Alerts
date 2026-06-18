@@ -218,3 +218,10 @@ The live monitor navigation was also changed from network-idle waits to DOM-cont
 Status: implemented.
 
 The top status bar now resolves active agency ID(s) to a saved agency preset name when available.
+
+
+## Named Agency and Unit Status Display
+
+Status: implemented.
+
+The dashboard, config summary, and top status bar now resolve active agency ID(s) and active unit lists to saved preset names when available.

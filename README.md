@@ -275,3 +275,15 @@ Example:
     Agency IDs: 37047 (AMR San Diego)
 
 If no saved agency preset matches the active ID string, the status bar displays the raw agency ID(s).
+
+
+## Named Agency and Unit Status Display
+
+The dashboard, config summary, and top status bar display saved preset names when the active agency ID(s) or unit list match a saved preset.
+
+Examples:
+
+    Agency: 37047 (AMR San Diego)
+    Units: E36, M231 (Station 36 / Jamul set)
+
+If no saved preset matches, the app displays the raw agency ID(s) or unit list.

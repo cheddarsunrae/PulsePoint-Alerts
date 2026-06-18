@@ -62,6 +62,33 @@ def agency_display(cfg: dict) -> str:
     return agency_ids
 
 
+
+
+def unit_set_display(cfg: dict) -> str:
+    units = cfg.get("units", [])
+    if isinstance(units, str):
+        units = normalize_units(units)
+
+    unit_text = units_display(units)
+    if not unit_text:
+        return "(none)"
+
+    unit_key = ",".join(units)
+
+    for preset in cfg.get("unit_presets", []):
+        preset_units = preset.get("units", [])
+        if isinstance(preset_units, str):
+            preset_units = normalize_units(preset_units)
+
+        preset_key = ",".join(preset_units)
+        preset_name = str(preset.get("name", "") or "").strip()
+
+        if preset_key == unit_key and preset_name:
+            return f"{unit_text} ({preset_name})"
+
+    return unit_text
+
+
 def datetime_filename() -> str:
     from datetime import datetime
     return datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -91,7 +118,7 @@ def layout(title: str, content: str) -> Response:
         active_text = "ACTIVE" if state.alert_active else "INACTIVE"
         reason = state.alert_reason
     active_agency = html_escape(agency_display(cfg))
-    active_units = html_escape(units_display(cfg.get("units", [])) or "(none)")
+    active_units = html_escape(unit_set_display(cfg))
     mode = "TEST" if cfg.get("test_mode") else "UNIT"
     status_class = "danger" if state.alert_active else "good"
     monitor_class = "status-running" if state.monitor_running else "status-stopped"
@@ -180,8 +207,8 @@ def create_app() -> Flask:
         content = f"""
 {first_run_html}<h2>Dashboard</h2><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
-<p><strong>Agency IDs:</strong> <code>{html_escape(cfg.get('agency_ids') or '(none)')}</code></p>
-<p><strong>Units:</strong> <code>{html_escape(units_display(cfg.get('units')) or '(none)')}</code></p>
+<p><strong>Agency:</strong> <code>{html_escape(agency_display(cfg))}</code></p>
+<p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
 <div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
@@ -616,8 +643,8 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <h3>Current Non-Secret Summary</h3>
 <table>
 <tr><th>Setting</th><th>Value</th></tr>
-<tr><td>Agency IDs</td><td><code>{html_escape(cfg.get("agency_ids", ""))}</code></td></tr>
-<tr><td>Units</td><td><code>{html_escape(units_display(cfg.get("units", [])))}</code></td></tr>
+<tr><td>Agency</td><td><code>{html_escape(agency_display(cfg))}</code></td></tr>
+<tr><td>Units</td><td><code>{html_escape(unit_set_display(cfg))}</code></td></tr>
 <tr><td>Desktop alert</td><td>{'ON' if cfg.get('desktop_alert_enabled') else 'OFF'}</td></tr>
 <tr><td>Phone alert</td><td>{'ON' if cfg.get('phone_alert_enabled') else 'OFF'}</td></tr>
 <tr><td>Push provider</td><td><code>{html_escape(cfg.get("push_provider", ""))}</code></td></tr>
