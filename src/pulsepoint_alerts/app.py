@@ -200,6 +200,7 @@ def layout(title: str, content: str) -> Response:
     last_success_age = age_display(last_success_time)
     last_refresh_age = age_display(last_refresh_time)
     alert_class = "status-alert-active" if state.alert_active else "status-alert-inactive"
+    refresh_tag = '<meta http-equiv="refresh" content="10">' if title == "Dashboard" else ""
     alert_controls = ""
     if state.alert_active:
         alert_controls = f"""
@@ -211,7 +212,7 @@ def layout(title: str, content: str) -> Response:
 </div>
 """
     return Response(f"""<!doctype html>
-<html><head><title>{html_escape(title)} - PulsePoint Alert Monitor</title>
+<html><head><title>{html_escape(title)} - PulsePoint Alert Monitor</title>{refresh_tag}
 <link rel="icon" href="/static/app.ico" sizes="any">
 <link rel="shortcut icon" href="/favicon.ico">
 <style>
@@ -293,7 +294,7 @@ def create_app() -> Flask:
 </div>
 """
         content = f"""
-{first_run_html}<h2>Dashboard</h2><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
+{first_run_html}<h2>Dashboard</h2><div class="good"><strong>Dashboard auto-refreshes every 10 seconds.</strong> Configuration pages do not auto-refresh so typed settings are not lost.</div><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
 <p><strong>Agency:</strong> <code>{html_escape(agency_display(cfg))}</code></p>
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>

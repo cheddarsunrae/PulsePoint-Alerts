@@ -246,3 +246,10 @@ Fixed dashboard rendering so monitor-health variables are defined inside the das
 Status: implemented.
 
 Health display now includes human-readable age text, green/yellow/red badge states, and stale-monitor detection based on poll interval.
+
+
+## Dashboard Auto-Refresh
+
+Status: implemented.
+
+Dashboard auto-refreshes every 10 seconds. Configuration pages intentionally do not auto-refresh to avoid losing typed settings.

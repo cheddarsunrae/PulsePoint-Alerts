@@ -319,3 +319,10 @@ Health states:
 - STALE: last successful check is older than the stale threshold
 
 The stale threshold is calculated from the configured poll interval.
+
+
+## Dashboard Auto-Refresh
+
+The Dashboard auto-refreshes every 10 seconds so monitor health, last-check time, error count, and status badges stay current without manual browser refresh.
+
+Configuration pages do not auto-refresh. This prevents losing typed settings while editing agencies, units, alerts, or config values.
