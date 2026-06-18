@@ -11,10 +11,7 @@ if (-not (Test-Path $hookDir)) {
 $hookLines = @(
     "#!/bin/sh",
     "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/check_docs_updated.ps1",
-    "status=$?",
-    "if [ $status -ne 0 ]; then",
-    "  exit $status",
-    "fi"
+    "exit `$?"
 )
 
 Set-Content -Path $hookPath -Value $hookLines -Encoding ASCII
