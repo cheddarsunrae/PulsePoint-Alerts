@@ -14,6 +14,11 @@ from .keepawake import set_keep_awake
 from .runtime import RuntimeState
 
 
+INCIDENT_TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$", re.I)
+ACTIVE_COUNT_RE = re.compile(r"^\(\d+\)$")
+UNIT_ONLY_RE = re.compile(r"^[\?\^]?\s*[A-Z]{1,6}\d{1,5}$", re.I)
+
+
 def build_unit_regex(units: list[str]) -> re.Pattern[str] | None:
     escaped = [re.escape(u.upper()) for u in units if u.strip()]
     if not escaped:
@@ -43,9 +48,73 @@ def normalize_incident_text(text: str) -> str:
     cleaned = text.upper()
     cleaned = re.sub(r"\b\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b", "", cleaned)
     cleaned = re.sub(r"\b\d+\s*(MIN|MINS|MINUTE|MINUTES)\b", "", cleaned)
+    cleaned = re.sub(r"\(\d+\)", "", cleaned)
+    cleaned = re.sub(r"(?<![A-Z0-9])[\?\^]\s*(?=[A-Z]{1,6}\d{1,5}\b)", "", cleaned)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
 
+
+def incident_signature_text(block: str) -> str:
+    """Return stable text used for incident identity.
+
+    Unit-only lines are intentionally ignored so responder-list changes,
+    unit-status marker changes, or unit ordering changes do not create
+    false new incident signatures.
+    """
+    signature_lines: list[str] = []
+
+    for raw_line in block.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if ACTIVE_COUNT_RE.match(line):
+            continue
+        if UNIT_ONLY_RE.match(line):
+            continue
+        signature_lines.append(line)
+
+    return normalize_incident_text("\n".join(signature_lines))
+
+
+def split_active_incident_blocks(active_text: str) -> list[str]:
+    """Split the PulsePoint Active section into incident-sized blocks.
+
+    PulsePoint Web text generally presents an incident as:
+    call type
+    time
+    address/location
+    units...
+
+    If incident boundaries cannot be identified, return no blocks rather than
+    bundling unrelated incidents together.
+    """
+    lines = [
+        line.strip()
+        for line in active_text.splitlines()
+        if line.strip() and not ACTIVE_COUNT_RE.match(line.strip())
+    ]
+
+    if not lines:
+        return []
+
+    starts: list[int] = []
+    for index in range(len(lines) - 1):
+        current = lines[index]
+        next_line = lines[index + 1]
+        if INCIDENT_TIME_RE.match(next_line) and not INCIDENT_TIME_RE.match(current):
+            starts.append(index)
+
+    if not starts:
+        return []
+
+    blocks: list[str] = []
+    for position, start in enumerate(starts):
+        end = starts[position + 1] if position + 1 < len(starts) else len(lines)
+        block_lines = lines[start:end]
+        if block_lines:
+            blocks.append("\n".join(block_lines))
+
+    return blocks
 
 def summarize_incident_block(block: str, max_chars: int = 700) -> str:
     """Create a compact call-detail summary suitable for phone push messages."""
@@ -73,31 +142,29 @@ def active_unit_incident_signatures(
     active_text: str,
     unit_re: re.Pattern[str] | None,
 ) -> tuple[dict[str, str], set[str]]:
-    """Return signature->incident text and units found in the Active section."""
+    """Return signature->incident text and units found in monitored Active incidents."""
     if unit_re is None:
         return {}, set()
 
-    lines = [line.strip() for line in active_text.splitlines() if line.strip()]
     signatures: dict[str, str] = {}
     units_found: set[str] = set()
 
-    for index, line in enumerate(lines):
-        matches = list(unit_re.finditer(line.upper()))
+    for block in split_active_incident_blocks(active_text):
+        matches = list(unit_re.finditer(block.upper()))
         if not matches:
             continue
 
         for match in matches:
             units_found.add(match.group(1).upper())
 
-        start = max(0, index - 8)
-        end = min(len(lines), index + 9)
-        block = "\n".join(lines[start:end])
-        normalized = normalize_incident_text(block)
-        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        stable_text = incident_signature_text(block)
+        if not stable_text:
+            continue
+
+        digest = hashlib.sha256(stable_text.encode("utf-8")).hexdigest()
         signatures[digest] = block
 
     return signatures, units_found
-
 
 def monitor_loop(state: RuntimeState) -> None:
     cfg = load_config()

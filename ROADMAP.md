@@ -259,3 +259,10 @@ Planned:
 - User-facing safety disclaimers.
 - Clear non-affiliation language.
 - Better privacy defaults.
+
+
+## Incident Block Parser Fix
+
+Status: implemented.
+
+Replaced sliding-window unit matching with incident-block parsing. This prevents unrelated neighboring incidents from triggering alerts merely because an existing monitored-unit incident is nearby in the Active section. Unit status prefixes and unit-only responder list changes are normalized out of incident signatures. If incident boundaries cannot be identified, the parser fails safe instead of bundling the entire Active section.

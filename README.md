@@ -348,3 +348,14 @@ The top status bar is intentionally kept as an at-a-glance summary:
 - Units
 
 Detailed health information is shown in the Dashboard Monitor Health card to avoid duplicating too much information across the page.
+
+
+## Incident Block Parser
+
+The monitor splits the PulsePoint Active section into incident-sized blocks before looking for monitored units.
+
+This prevents a monitored unit on one incident from being bundled with unrelated neighboring incidents. Earlier sliding-window parsing could cause false alerts when a new nearby incident appeared above or below an existing monitored-unit incident.
+
+Incident signatures ignore unit-only lines so responder-list changes, unit-status marker changes, or unit ordering changes do not create duplicate alerts for the same incident.
+
+If incident boundaries cannot be identified, the parser fails safe rather than bundling the entire Active section into one incident.
