@@ -273,3 +273,10 @@ Replaced sliding-window unit matching with incident-block parsing. This prevents
 Status: implemented.
 
 Real monitor alerts persist local evidence snapshots containing the matched units, triggering incident blocks, signatures, configured monitor settings, and raw Active section text from the alert cycle. Diagnostics ZIP exports include recent evidence snapshots for post-incident troubleshooting.
+
+
+## Troubleshooting Page
+
+Status: implemented.
+
+Added a read-only troubleshooting page with app/runtime health, install-path checks, shortcut status, monitor health, evidence/history counts, and quick export actions.

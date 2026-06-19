@@ -370,3 +370,8 @@ Evidence snapshots include the matched monitored units, new incident signatures,
 Alert History links to evidence snapshots when available. Diagnostics ZIP exports include recent alert evidence snapshots as `alert_evidence_recent.json`.
 
 Evidence may contain call details or addresses from PulsePoint Active and should be treated as sensitive troubleshooting data.
+
+
+## Troubleshooting Page
+
+The app includes a read-only Troubleshooting page showing app version, Python/platform information, Playwright package status, runtime paths, shortcut status, monitor health, configured units, alert history count, evidence snapshot count, and quick export buttons for diagnostics, alert history, and redacted config.

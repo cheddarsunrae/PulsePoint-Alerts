@@ -175,6 +175,7 @@ def nav() -> str:
 <a href="/debug/active">Active Debug</a>
 <a href="/config">Config</a>
 <a href="/logs">Logs</a>
+<a href="/troubleshooting">Troubleshooting</a>
 </nav>
 """
 
@@ -774,6 +775,138 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 """
             return layout("Active Incident Debug", content)
 
+
+
+
+    @app.route("/troubleshooting")
+    def troubleshooting_page() -> Response:
+        cfg = load_config()
+        runtime_dir = Path(config_path()).parent
+
+        try:
+            import importlib.util
+            playwright_status = "installed" if importlib.util.find_spec("playwright") else "not found"
+        except Exception as exc:
+            playwright_status = f"check failed: {exc}"
+
+        desktop_shortcut = Path.home() / "Desktop" / "PulsePoint Alert Monitor.lnk"
+        startup_shortcut = (
+            Path.home()
+            / "AppData"
+            / "Roaming"
+            / "Microsoft"
+            / "Windows"
+            / "Start Menu"
+            / "Programs"
+            / "Startup"
+            / "PulsePoint Alert Monitor.lnk"
+        )
+
+        with state.lock:
+            monitor_running = state.monitor_running
+            alert_active = state.alert_active
+            alert_reason = state.alert_reason
+            last_check_time = state.last_check_time or "never"
+            last_success_time = state.last_success_time or "never"
+            last_refresh_time = state.last_refresh_time or "never"
+            last_error = state.last_error or ""
+            consecutive_errors = state.consecutive_errors
+            active_section_found = state.active_section_found
+            history_count = len(state.alert_events)
+            evidence_count = len(getattr(state, "alert_evidence", []))
+
+        health_label, health_class = monitor_health_label(
+            monitor_running,
+            last_success_time,
+            consecutive_errors,
+            int(cfg.get("poll_seconds", 5)),
+        )
+
+        content = f"""
+<h2>Troubleshooting</h2>
+
+<div class="warn">
+This page is read-only. It is intended to help troubleshoot install, monitor, alert, and diagnostics status without changing settings.
+</div>
+
+<div class="grid">
+<div class="card">
+<h3>App</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Version</td><td><code>{html_escape(__version__)}</code></td></tr>
+<tr><td>Python</td><td><code>{html_escape(sys.version.split()[0])}</code></td></tr>
+<tr><td>Platform</td><td><code>{html_escape(platform.platform())}</code></td></tr>
+<tr><td>Playwright package</td><td><code>{html_escape(playwright_status)}</code></td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>Paths</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Config path</td><td><code>{html_escape(config_path())}</code></td></tr>
+<tr><td>Runtime folder</td><td><code>{html_escape(runtime_dir)}</code></td></tr>
+<tr><td>Desktop shortcut</td><td>{'FOUND' if desktop_shortcut.exists() else 'not found'}<br><small><code>{html_escape(desktop_shortcut)}</code></small></td></tr>
+<tr><td>Startup shortcut</td><td>{'FOUND' if startup_shortcut.exists() else 'not found'}<br><small><code>{html_escape(startup_shortcut)}</code></small></td></tr>
+</table>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+<h3>Monitor Health</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Monitor</td><td>{'RUNNING' if monitor_running else 'STOPPED'}</td></tr>
+<tr><td>Health</td><td><span class="status-pill {health_class}">{health_label}</span></td></tr>
+<tr><td>Alert</td><td>{'ACTIVE' if alert_active else 'INACTIVE'}</td></tr>
+<tr><td>Alert reason</td><td>{html_escape(alert_reason or '(none)')}</td></tr>
+<tr><td>Last check</td><td>{html_escape(age_display(last_check_time))} <small>({html_escape(last_check_time)})</small></td></tr>
+<tr><td>Last success</td><td>{html_escape(age_display(last_success_time))} <small>({html_escape(last_success_time)})</small></td></tr>
+<tr><td>Last refresh</td><td>{html_escape(age_display(last_refresh_time))} <small>({html_escape(last_refresh_time)})</small></td></tr>
+<tr><td>Active section</td><td>{'found' if active_section_found else 'not found'}</td></tr>
+<tr><td>Consecutive errors</td><td>{consecutive_errors}</td></tr>
+<tr><td>Last error</td><td>{html_escape(last_error or '(none)')}</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>Configured Monitoring</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Agency</td><td><code>{html_escape(agency_display(cfg))}</code></td></tr>
+<tr><td>Units</td><td><code>{html_escape(unit_set_display(cfg))}</code></td></tr>
+<tr><td>Test mode</td><td>{'ON' if cfg.get('test_mode') else 'OFF'}</td></tr>
+<tr><td>Poll seconds</td><td>{html_escape(cfg.get('poll_seconds'))}</td></tr>
+<tr><td>Refresh seconds</td><td>{html_escape(cfg.get('refresh_seconds'))}</td></tr>
+<tr><td>Desktop alert</td><td>{'ON' if cfg.get('desktop_alert_enabled') else 'OFF'}</td></tr>
+<tr><td>Phone alert</td><td>{'ON' if cfg.get('phone_alert_enabled') else 'OFF'}</td></tr>
+<tr><td>Push provider</td><td><code>{html_escape(cfg.get('push_provider', ''))}</code></td></tr>
+</table>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+<h3>Local Data</h3>
+<table>
+<tr><th>Item</th><th>Value</th></tr>
+<tr><td>Alert history events</td><td>{history_count}</td></tr>
+<tr><td>Alert evidence snapshots</td><td>{evidence_count}</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>Exports</h3>
+<p>Use these for troubleshooting after a false alert or missed alert.</p>
+<a href="/diagnostics/export"><button type="button">Export Diagnostics ZIP</button></a>
+<a href="/history/export.csv"><button type="button">Export Alert History CSV</button></a>
+<a href="/config/export-redacted"><button type="button">Export Redacted Config JSON</button></a>
+</div>
+</div>
+"""
+        return layout("Troubleshooting", content)
 
 
     @app.route("/config")

@@ -72,3 +72,16 @@ def test_refresh_now_route_ignored_when_monitor_stopped():
 
     assert requested is False
 
+
+
+def test_troubleshooting_page_renders():
+    app = create_app()
+    client = app.test_client()
+
+    response = client.get("/troubleshooting")
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Troubleshooting" in body
+    assert "Monitor Health" in body
+    assert "Export Diagnostics ZIP" in body
