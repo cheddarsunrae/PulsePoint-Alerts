@@ -4,6 +4,7 @@
 
 ### Added
 
+- Documentation now identifies Pushover as the recommended provider for the full wake-up and future phone-acknowledgement workflow while preserving ntfy as the free/default path.
 - Public PDF user guide for PulsePointer Alerter under `docs/`.
 - Troubleshooting view for recent local debug snapshots.
 - Alert profiles: Alert Me and Track Unit(s).

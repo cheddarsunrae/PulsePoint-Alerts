@@ -428,3 +428,18 @@ The editable DOCX source is kept locally and is not required for normal users.
 
 
 Troubleshooting can list recent debug snapshots created when the PulsePoint Active section is unavailable. Snapshot files are local diagnostic artifacts and may contain call/location details.
+
+## Recommended Phone Alert Path
+
+PulsePointer Alerter supports multiple phone alert options so users can choose the right cost/reliability tradeoff.
+
+For the most complete implementation and best wake-up behavior, Pushover is the recommended provider. Pushover emergency-priority alerts can repeat until acknowledged, and Pushover receipt support makes it the best future path for phone-side acknowledgement tracking and stopping a laptop alert after a phone acknowledgement.
+
+Recommended options:
+
+- **Free/default path:** ntfy
+- **Best full-feature path:** Pushover
+- **Maximum redundancy:** Both ntfy and Pushover
+- **Future paid fallback:** Twilio/SMS
+
+Pushover is not required to use the app, but it is the best bargain for the full overnight wake-up and acknowledgement workflow.

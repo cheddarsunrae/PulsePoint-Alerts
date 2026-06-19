@@ -344,3 +344,18 @@ Troubleshooting now lists recent local debug snapshot files and provides a read-
 Status: implemented.
 
 Added a public-facing PDF guide under `docs/` using the PulsePointer Alerter name and current unit-awareness / backup-alerting framing.
+
+
+## Phone Acknowledgement Roadmap
+
+Status: planned.
+
+Pushover is the preferred provider for future phone-side acknowledgement tracking because emergency-priority alerts provide receipt/callback support. Planned behavior:
+
+- store the Pushover receipt for emergency alerts
+- poll or receive acknowledgement status
+- mark alert history as acknowledged by phone
+- log the phone acknowledgement time
+- stop the laptop alert when a phone acknowledgement is detected
+
+ntfy remains the best free/default provider, but phone-side acknowledgement requires a different design because the phone must reach the local app or an external callback endpoint.
