@@ -13,6 +13,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "poll_seconds": 5,
     "sound_file": "",
     "test_mode": False,
+    "alert_profile": "alert_me",
     "alert_mode": "until_ack",
     "alert_duration_seconds": 30,
     "desktop_alert_enabled": True,
@@ -40,6 +41,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "ntfy_tags": "rotating_light,ambulance",
     "ntfy_call": "",
 }
+
+ALERT_PROFILES = {"alert_me", "track_units"}
+
+
+def normalize_alert_profile(value: object) -> str:
+    profile = str(value or "").strip().lower()
+    return profile if profile in ALERT_PROFILES else "alert_me"
+
+
+def alert_profile_label(value: object) -> str:
+    return "Track Unit(s)" if normalize_alert_profile(value) == "track_units" else "Alert Me"
 
 
 def app_dir() -> Path:
@@ -85,6 +97,7 @@ def load_config() -> dict[str, Any]:
         merged["agency_presets"] = []
     if not isinstance(merged.get("unit_presets"), list):
         merged["unit_presets"] = []
+    merged["alert_profile"] = normalize_alert_profile(merged.get("alert_profile"))
     return merged
 
 

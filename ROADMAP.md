@@ -287,3 +287,10 @@ Added a read-only troubleshooting page with app/runtime health, install-path che
 Status: implemented.
 
 The RUNNING / STOPPED monitor status pill in the top bar can now be clicked to start or stop monitoring from any page. The program header also displays the PNG app icon directly in the UI.
+
+
+## Alert Profiles
+
+Status: implemented.
+
+Added Alert Me and Track Unit(s) profiles. Alert Me retains looping desktop alerts, emergency/repeating phone pushes, ACK handling, history, and evidence. Track Unit(s) suppresses the desktop loop, uses low-priority non-emergency phone pushes with no ACK requirement, and preserves profile-tagged history and evidence. Profile selection is included throughout status displays, troubleshooting, diagnostics, and exports.

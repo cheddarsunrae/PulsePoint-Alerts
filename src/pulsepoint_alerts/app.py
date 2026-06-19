@@ -15,7 +15,16 @@ from flask import Flask, Response, redirect, request, send_from_directory
 
 from . import __version__
 from .alerting import send_ntfy, send_pushover, silence_alert, trigger_alert, trigger_desktop_alert
-from .config import DEFAULT_CONFIG, asset_default_sound, config_path, load_config, normalize_units, save_config
+from .config import (
+    DEFAULT_CONFIG,
+    alert_profile_label,
+    asset_default_sound,
+    config_path,
+    load_config,
+    normalize_alert_profile,
+    normalize_units,
+    save_config,
+)
 from .keepawake import set_keep_awake
 from .monitor import active_section_text, active_unit_incident_signatures, build_unit_regex, monitor_loop
 from .runtime import RuntimeState
@@ -93,6 +102,11 @@ def unit_set_display(cfg: dict) -> str:
 def datetime_filename() -> str:
     from datetime import datetime
     return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def now_local_iso() -> str:
+    from datetime import datetime
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 
@@ -194,6 +208,7 @@ def layout(title: str, content: str) -> Response:
         active_section_status = "found" if state.active_section_found else "not found"
     active_agency = html_escape(agency_display(cfg))
     active_units = html_escape(unit_set_display(cfg))
+    profile = alert_profile_label(cfg.get("alert_profile"))
     mode = "TEST" if cfg.get("test_mode") else "UNIT"
     status_class = "danger" if state.alert_active else "good"
     monitor_class = "status-running" if state.monitor_running else "status-stopped"
@@ -256,7 +271,7 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .help-tip:hover .help-text, .help-tip:focus .help-text {{ visibility: visible; opacity: 1; }}
 </style></head>
 <body><header><h1><img src="/static/app-icon.png" alt="PulsePoint Alert Monitor icon" class="brand-icon"> PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
-<div class="statusbar"><strong>Monitor:</strong> <form method="post" action="/toggle-monitor" style="display:inline"><button type="submit" class="status-pill status-toggle {monitor_class}" title="Click to start/stop monitor">{running_text}</button></form> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span></div>
+<div class="statusbar"><strong>Monitor:</strong> <form method="post" action="/toggle-monitor" style="display:inline"><button type="submit" class="status-pill status-toggle {monitor_class}" title="Click to start/stop monitor">{running_text}</button></form> | <strong>Profile:</strong> {html_escape(profile)} | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span></div>
 {alert_controls}<main>{content}</main></body></html>""", mimetype="text/html")
 
 
@@ -266,15 +281,30 @@ def start_monitor_if_needed(log_message: str = "Monitor start requested.") -> bo
     """Start the monitor thread if it is not already running."""
     with state.lock:
         if state.monitor_running:
-            state.log("Monitor start ignored: monitor is already running.")
-            return False
+            should_start = False
+        else:
+            state.monitor_running = True
+            should_start = True
 
-        state.monitor_running = True
+    if not should_start:
+        state.log("Monitor start ignored: monitor is already running.")
+        return False
 
     state.monitor_stop.clear()
     threading.Thread(target=monitor_loop, args=(state,), daemon=True).start()
     state.log(log_message)
     return True
+
+
+def stop_monitor(log_message: str = "Monitor stop requested.") -> None:
+    """Request a monitor stop and perform the standard stop cleanup."""
+    state.monitor_stop.set()
+    silence_alert(state)
+    try:
+        set_keep_awake(False)
+    except Exception:
+        pass
+    state.log(log_message)
 
 
 def create_app() -> Flask:
@@ -320,6 +350,7 @@ def create_app() -> Flask:
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
 <p><strong>Agency:</strong> <code>{html_escape(agency_display(cfg))}</code></p>
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>
+<p><strong>Alert profile:</strong> {html_escape(alert_profile_label(cfg.get('alert_profile')))}</p>
 <p><strong>Poll:</strong> {cfg.get('poll_seconds', 5)} seconds</p><p><strong>Mode:</strong> {'TEST' if cfg.get('test_mode') else 'UNIT'}</p>
 <p><strong>Sleep prevention:</strong> {'ON' if cfg.get('prevent_sleep') else 'OFF'}</p></div>
 <div class="card"><h3>Monitor Health</h3>
@@ -525,7 +556,12 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
     @app.route("/alerts")
     def alerts_page() -> Response:
         cfg = load_config(); provider = cfg.get("push_provider", "pushover")
-        content = f"""<h2>Alerts</h2><div class="card"><form method="post" action="/alerts/save"><h3>Alert Channels</h3>
+        content = f"""<h2>Alerts</h2><div class="card"><form method="post" action="/alerts/save"><h3>Alert Profile</h3>
+<p><strong>Selected profile:</strong> {html_escape(alert_profile_label(cfg.get('alert_profile')))}</p>
+<label>Profile {help_tip("Alert Me uses looping desktop alerts and emergency/repeating phone pushes that require acknowledgement. Track Unit(s) records activity and sends low-priority phone updates without a desktop loop or ACK requirement.")}</label>
+<select name="alert_profile"><option value="alert_me" {selected(cfg.get('alert_profile'), 'alert_me')}>Alert Me</option><option value="track_units" {selected(cfg.get('alert_profile'), 'track_units')}>Track Unit(s)</option></select>
+<div class="warn"><strong>Alert Me:</strong> full desktop alert, emergency/repeating phone push, and ACK workflow.<br><strong>Track Unit(s):</strong> no looping desktop alert, low-priority phone push, and no ACK requirement. Both profiles retain history and evidence.</div>
+<h3>Alert Channels</h3>
 <label><input type="checkbox" name="desktop_alert_enabled" {checked(cfg.get('desktop_alert_enabled', True))}> Laptop / desktop audible alert {help_tip("When enabled, the computer plays the local alert sound when a monitored unit is detected.")}</label>
 <label><input type="checkbox" name="phone_alert_enabled" {checked(cfg.get('phone_alert_enabled', True))}> Phone push alert {help_tip("When enabled, the app sends a push notification through the configured phone provider.")}</label>
 <label><input type="checkbox" name="include_call_details_in_phone_push" {checked(cfg.get('include_call_details_in_phone_push', True))}> Include call details in phone push {help_tip("When enabled, phone pushes can include incident details such as call type, address/context, and units. Turn off if you do not want details visible on your phone lock screen.")}</label>
@@ -538,6 +574,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         for field in fields: cfg[field] = request.form.get(field, "").strip()
         cfg["desktop_alert_enabled"] = bool(request.form.get("desktop_alert_enabled"))
         cfg["phone_alert_enabled"] = bool(request.form.get("phone_alert_enabled"))
+        cfg["alert_profile"] = normalize_alert_profile(request.form.get("alert_profile"))
         cfg["include_call_details_in_phone_push"] = bool(request.form.get("include_call_details_in_phone_push"))
         for field in ["alert_duration_seconds","cooldown_seconds","pushover_priority","pushover_retry_seconds","pushover_expire_seconds","ntfy_priority"]: cfg[field] = int(request.form.get(field, cfg.get(field, 0)))
         cfg["pushover_retry_seconds"] = max(30, cfg["pushover_retry_seconds"]); cfg["pushover_expire_seconds"] = min(10800, cfg["pushover_expire_seconds"]); save_config(cfg); state.log("Alert settings saved."); return redirect("/alerts")
@@ -559,6 +596,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
                 "<tr>"
                 f"<td>{html_escape(event.get('time', ''))}</td>"
                 f"<td>{html_escape(event.get('source', ''))}</td>"
+                f"<td>{html_escape(alert_profile_label(event.get('profile', 'alert_me')))}</td>"
                 f"<td>{evidence_cell}</td>"
                 f"<td>{html_escape(event.get('reason', ''))}</td>"
                 f"<td>{html_escape(event.get('desktop', ''))}</td>"
@@ -569,7 +607,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             )
 
         if not rows:
-            rows = '<tr><td colspan="8"><em>No alert history yet.</em></td></tr>'
+            rows = '<tr><td colspan="9"><em>No alert history yet.</em></td></tr>'
 
         content = f"""
 <h2>Alert History</h2>
@@ -582,6 +620,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <tr>
 <th>Time</th>
 <th>Source</th>
+<th>Profile</th>
 <th>Evidence</th>
 <th>Reason</th>
 <th>Desktop</th>
@@ -637,6 +676,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <tr><th>Field</th><th>Value</th></tr>
 <tr><td>Evidence ID</td><td><code>{html_escape(evidence.get("id", ""))}</code></td></tr>
 <tr><td>Time</td><td>{html_escape(evidence.get("time", ""))}</td></tr>
+<tr><td>Alert profile</td><td>{html_escape(alert_profile_label(evidence.get("alert_profile", "alert_me")))}</td></tr>
 <tr><td>Agency IDs</td><td><code>{html_escape(evidence.get("agency_ids", ""))}</code></td></tr>
 <tr><td>Configured units</td><td><code>{html_escape(", ".join(evidence.get("configured_units", [])) if isinstance(evidence.get("configured_units"), list) else evidence.get("configured_units", ""))}</code></td></tr>
 <tr><td>Matched units</td><td><code>{html_escape(", ".join(evidence.get("matched_units", [])) if isinstance(evidence.get("matched_units"), list) else evidence.get("matched_units", ""))}</code></td></tr>
@@ -669,7 +709,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
     def export_history_csv() -> Response:
         events = state.alert_history(500)
         output = io.StringIO()
-        fieldnames = ["time", "source", "evidence_id", "reason", "desktop", "phone", "acknowledged", "ack_time"]
+        fieldnames = ["time", "source", "profile", "evidence_id", "reason", "desktop", "phone", "ack_required", "acknowledged", "ack_time"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -896,6 +936,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 <tr><th>Item</th><th>Value</th></tr>
 <tr><td>Agency</td><td><code>{html_escape(agency_display(cfg))}</code></td></tr>
 <tr><td>Units</td><td><code>{html_escape(unit_set_display(cfg))}</code></td></tr>
+<tr><td>Alert profile</td><td>{html_escape(alert_profile_label(cfg.get('alert_profile')))}</td></tr>
 <tr><td>Test mode</td><td>{'ON' if cfg.get('test_mode') else 'OFF'}</td></tr>
 <tr><td>Poll seconds</td><td>{html_escape(cfg.get('poll_seconds'))}</td></tr>
 <tr><td>Refresh seconds</td><td>{html_escape(cfg.get('refresh_seconds'))}</td></tr>
@@ -976,6 +1017,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 <tr><th>Setting</th><th>Value</th></tr>
 <tr><td>Agency</td><td><code>{html_escape(agency_display(cfg))}</code></td></tr>
 <tr><td>Units</td><td><code>{html_escape(unit_set_display(cfg))}</code></td></tr>
+<tr><td>Alert profile</td><td>{html_escape(alert_profile_label(cfg.get('alert_profile')))}</td></tr>
 <tr><td>Desktop alert</td><td>{'ON' if cfg.get('desktop_alert_enabled') else 'OFF'}</td></tr>
 <tr><td>Phone alert</td><td>{'ON' if cfg.get('phone_alert_enabled') else 'OFF'}</td></tr>
 <tr><td>Push provider</td><td><code>{html_escape(cfg.get("push_provider", ""))}</code></td></tr>
@@ -1044,6 +1086,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
             "settings_summary": {
                 "agency_ids": redacted_cfg.get("agency_ids"),
                 "units": redacted_cfg.get("units"),
+                "alert_profile": redacted_cfg.get("alert_profile"),
                 "test_mode": redacted_cfg.get("test_mode"),
                 "poll_seconds": redacted_cfg.get("poll_seconds"),
                 "desktop_alert_enabled": redacted_cfg.get("desktop_alert_enabled"),
@@ -1135,18 +1178,13 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 
     @app.route("/start", methods=["POST"])
     def start() -> Response:
-        with state.lock:
-            if state.monitor_running:
-                state.log("Monitor already running."); return redirect("/")
-            state.monitor_running = True
-        state.monitor_stop.clear(); threading.Thread(target=monitor_loop, args=(state,), daemon=True).start(); state.log("Monitor start requested."); return redirect("/")
+        start_monitor_if_needed()
+        return redirect("/")
 
     @app.route("/stop", methods=["POST"])
     def stop() -> Response:
-        state.monitor_stop.set(); silence_alert(state)
-        try: set_keep_awake(False)
-        except Exception: pass
-        state.log("Monitor stop requested."); return redirect("/")
+        stop_monitor()
+        return redirect("/")
 
 
 
@@ -1156,8 +1194,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
             running = state.monitor_running
 
         if running:
-            state.monitor_stop.set()
-            state.log("Monitor stop requested from top status bar.")
+            stop_monitor("Monitor stop requested from top status bar.")
         else:
             start_monitor_if_needed("Monitor start requested from top status bar.")
 
@@ -1209,6 +1246,8 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
     @app.route("/test-push", methods=["POST"])
     def test_push() -> Response:
         cfg = load_config()
+        profile = normalize_alert_profile(cfg.get("alert_profile"))
+        tracking = profile == "track_units"
         provider = cfg.get("push_provider", "pushover")
         title = "PulsePoint Alert Monitor Test"
         message = "Manual phone push test sent."
@@ -1216,17 +1255,35 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
         sent_any = False
 
         if provider in ("pushover", "both"):
-            sent_any = send_pushover(title, message, state, emergency=True) or sent_any
+            sent_any = send_pushover(
+                title,
+                message,
+                state,
+                emergency=not tracking,
+                priority_override=-1 if tracking else None,
+            ) or sent_any
 
         if provider in ("ntfy", "both"):
-            sent_any = send_ntfy(title, message, state) or sent_any
+            sent_any = send_ntfy(
+                title,
+                message,
+                state,
+                priority_override=2 if tracking else None,
+                allow_call=not tracking,
+            ) or sent_any
 
         if provider == "none":
             state.log("Test phone push skipped: provider set to none.")
 
         reason = "Manual phone push test sent." if sent_any else "Manual phone push test attempted but no provider confirmed success."
-        state.record_alert(reason, desktop_enabled=False, phone_enabled=sent_any, source="manual_phone")
-        state.acknowledge_latest_alert()
+        state.record_alert(
+            reason,
+            desktop_enabled=False,
+            phone_enabled=sent_any,
+            source="manual_phone",
+            profile=profile,
+            ack_required=False,
+        )
 
         return redirect("/alerts")
 
@@ -1237,6 +1294,3 @@ def main() -> None:
     state.log("PulsePoint Alert App started.")
     state.log("Open http://127.0.0.1:8765")
     create_app().run(host="127.0.0.1", port=8765, debug=False)
-
-
-

@@ -203,6 +203,8 @@ class RuntimeState:
         phone_enabled: bool,
         source: str = "monitor",
         evidence_id: str = "",
+        profile: str = "alert_me",
+        ack_required: bool = True,
     ) -> None:
         event = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -210,7 +212,9 @@ class RuntimeState:
             "desktop": "yes" if desktop_enabled else "no",
             "phone": "yes" if phone_enabled else "no",
             "source": source,
-            "acknowledged": "no",
+            "profile": profile,
+            "ack_required": "yes" if ack_required else "no",
+            "acknowledged": "no" if ack_required else "not_required",
             "ack_time": "",
             "evidence_id": evidence_id,
         }

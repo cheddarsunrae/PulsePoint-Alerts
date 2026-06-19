@@ -1,4 +1,4 @@
-from pulsepoint_alerts.app import create_app
+from pulsepoint_alerts.app import create_app, start_monitor_if_needed
 
 
 def test_dashboard_renders_without_heartbeat_scope_error():
@@ -159,4 +159,49 @@ def test_toggle_monitor_stops_when_running():
 
     with state.lock:
         state.monitor_running = False
+        state.monitor_stop.clear()
+
+
+def test_start_monitor_if_needed_returns_when_already_running():
+    from pulsepoint_alerts.app import state
+
+    with state.lock:
+        state.monitor_running = True
+
+    try:
+        assert start_monitor_if_needed() is False
+    finally:
+        with state.lock:
+            state.monitor_running = False
+
+
+def test_toggle_monitor_stop_performs_standard_cleanup(monkeypatch):
+    from pulsepoint_alerts.app import state
+
+    cleanup_calls = []
+    monkeypatch.setattr(
+        "pulsepoint_alerts.app.silence_alert",
+        lambda runtime_state: cleanup_calls.append(("silence", runtime_state)),
+    )
+    monkeypatch.setattr(
+        "pulsepoint_alerts.app.set_keep_awake",
+        lambda enabled: cleanup_calls.append(("keep_awake", enabled)),
+    )
+
+    app = create_app()
+    client = app.test_client()
+
+    with state.lock:
+        state.monitor_running = True
+        state.monitor_stop.clear()
+
+    try:
+        response = client.post("/toggle-monitor")
+
+        assert response.status_code == 302
+        assert state.monitor_stop.is_set()
+        assert cleanup_calls == [("silence", state), ("keep_awake", False)]
+    finally:
+        with state.lock:
+            state.monitor_running = False
         state.monitor_stop.clear()

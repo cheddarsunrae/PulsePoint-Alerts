@@ -12,6 +12,7 @@ A local backup alerting tool that watches PulsePoint Respond for Web and alerts 
 
 - Monitor one or more PulsePoint agency feeds.
 - Watch one or more units/apparatus IDs.
+- Choose Alert Me or Track Unit(s) behavior for monitored-unit activity.
 - Test mode: alert on any new PulsePoint page activity.
 - Laptop audible alert.
 - Alert until acknowledged.
@@ -136,6 +137,16 @@ When enabled, Pushover and/or ntfy messages may include incident details from th
 Turn this setting off if you want phone pushes to show only that a monitored unit alert occurred without including call details.
 
 
+## Alert Profiles
+
+Choose the active profile on the Alerts page:
+
+- **Alert Me** keeps the full alert workflow: enabled laptop/desktop looping alerts, emergency or repeating phone pushes, ACK/Silence requirements, history, and evidence.
+- **Track Unit(s)** records monitored-unit activity without starting the looping desktop alert. Enabled phone pushes use low-priority, non-emergency delivery and do not request ntfy calling. Tracking events require no ACK while still retaining history and evidence.
+
+The selected profile is shown on the Alerts page, Dashboard, top status bar, History, Evidence, Troubleshooting, diagnostics, and exported data. Existing configurations default to Alert Me.
+
+
 ## Alert History Persistence
 
 Alert history is saved locally in the app runtime folder as `alert_history.json`.
@@ -152,7 +163,7 @@ Alert history survives app restarts, can be cleared from the History page, and c
 
 Manual laptop alert tests, manual phone push tests, and simulated active incident alerts are written to Alert History.
 
-Phone push test entries are marked as `manual_phone` and are automatically treated as acknowledged because they do not create a local laptop alert that needs to be silenced.
+Phone push test entries are marked as `manual_phone` and as not requiring acknowledgement because they do not create a local laptop alert that needs to be silenced.
 
 ## Windows Shortcuts and Start-at-Login
 
