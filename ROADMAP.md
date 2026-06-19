@@ -294,3 +294,10 @@ The RUNNING / STOPPED monitor status pill in the top bar can now be clicked to s
 Status: implemented.
 
 Added Alert Me and Track Unit(s) profiles. Alert Me retains looping desktop alerts, emergency/repeating phone pushes, ACK handling, history, and evidence. Track Unit(s) suppresses the desktop loop, uses low-priority non-emergency phone pushes with no ACK requirement, and preserves profile-tagged history and evidence. Profile selection is included throughout status displays, troubleshooting, diagnostics, and exports.
+
+
+## Cross-Platform Start at Login
+
+Status: implemented.
+
+Added current-user interface controls for enabling and disabling start at login on Windows, macOS, and Linux. The app uses the Windows Startup folder, a macOS LaunchAgent, or an XDG autostart desktop entry and reports the active artifact on the Troubleshooting page.

@@ -85,6 +85,24 @@ def test_troubleshooting_page_renders():
     assert "Troubleshooting" in body
     assert "Monitor Health" in body
     assert "Export Diagnostics ZIP" in body
+    assert "Start at Login" in body
+
+
+def test_start_at_login_routes_use_platform_helpers(monkeypatch):
+    import pulsepoint_alerts.app as app_module
+    from pulsepoint_alerts.autostart import StartAtLoginStatus
+
+    calls = []
+    enabled = StartAtLoginStatus(True, True, "TestOS", app_module.Path("autostart.file"), "Enabled")
+    disabled = StartAtLoginStatus(True, False, "TestOS", app_module.Path("autostart.file"), "Disabled")
+    monkeypatch.setattr(app_module, "enable_start_at_login", lambda: calls.append("enable") or enabled)
+    monkeypatch.setattr(app_module, "disable_start_at_login", lambda: calls.append("disable") or disabled)
+
+    client = create_app().test_client()
+
+    assert client.post("/start-at-login/enable").status_code == 302
+    assert client.post("/start-at-login/disable").status_code == 302
+    assert calls == ["enable", "disable"]
 
 
 def test_status_bar_monitor_pill_is_clickable():
@@ -109,6 +127,8 @@ def test_header_displays_png_icon():
     body = response.get_data(as_text=True)
     assert "/static/app-icon.png" in body
     assert "brand-icon" in body
+    assert "/static/app.ico?v=" in body
+    assert "/favicon.ico?v=" in body
 
 
 def test_toggle_monitor_starts_when_stopped(monkeypatch):

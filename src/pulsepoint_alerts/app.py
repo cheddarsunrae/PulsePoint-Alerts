@@ -15,6 +15,7 @@ from flask import Flask, Response, redirect, request, send_from_directory
 
 from . import __version__
 from .alerting import send_ntfy, send_pushover, silence_alert, trigger_alert, trigger_desktop_alert
+from .autostart import disable_start_at_login, enable_start_at_login, get_start_at_login_status
 from .config import (
     DEFAULT_CONFIG,
     alert_profile_label,
@@ -196,6 +197,8 @@ def nav() -> str:
 
 def layout(title: str, content: str) -> Response:
     cfg = load_config()
+    icon_path = STATIC_DIR / "app.ico"
+    icon_version = icon_path.stat().st_mtime_ns if icon_path.exists() else 0
     with state.lock:
         running_text = "RUNNING" if state.monitor_running else "STOPPED"
         active_text = "ACTIVE" if state.alert_active else "INACTIVE"
@@ -230,8 +233,8 @@ def layout(title: str, content: str) -> Response:
 """
     return Response(f"""<!doctype html>
 <html><head><title>{html_escape(title)} - PulsePoint Alert Monitor</title>{refresh_tag}
-<link rel="icon" href="/static/app.ico" sizes="any">
-<link rel="shortcut icon" href="/favicon.ico">
+<link rel="icon" href="/static/app.ico?v={icon_version}" sizes="any">
+<link rel="shortcut icon" href="/favicon.ico?v={icon_version}">
 <style>
 body {{ font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; color: #222; }}
 header {{ background: #222; color: white; padding: 18px 28px; }} header h1 {{ margin: 0; font-size: 24px; display: flex; align-items: center; gap: 12px; }} .brand-icon {{ width: 36px; height: 36px; object-fit: contain; border-radius: 8px; }}
@@ -841,6 +844,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
     def troubleshooting_page() -> Response:
         cfg = load_config()
         runtime_dir = Path(config_path()).parent
+        start_at_login = get_start_at_login_status()
 
         try:
             import importlib.util
@@ -849,18 +853,6 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             playwright_status = f"check failed: {exc}"
 
         desktop_shortcut = Path.home() / "Desktop" / "PulsePoint Alert Monitor.lnk"
-        startup_shortcut = (
-            Path.home()
-            / "AppData"
-            / "Roaming"
-            / "Microsoft"
-            / "Windows"
-            / "Start Menu"
-            / "Programs"
-            / "Startup"
-            / "PulsePoint Alert Monitor.lnk"
-        )
-
         with state.lock:
             monitor_running = state.monitor_running
             alert_active = state.alert_active
@@ -885,7 +877,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <h2>Troubleshooting</h2>
 
 <div class="warn">
-This page is read-only. It is intended to help troubleshoot install, monitor, alert, and diagnostics status without changing settings.
+This page is primarily read-only. The Start at Login controls change only the current user's login settings.
 </div>
 
 <div class="grid">
@@ -907,7 +899,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 <tr><td>Config path</td><td><code>{html_escape(config_path())}</code></td></tr>
 <tr><td>Runtime folder</td><td><code>{html_escape(runtime_dir)}</code></td></tr>
 <tr><td>Desktop shortcut</td><td>{'FOUND' if desktop_shortcut.exists() else 'not found'}<br><small><code>{html_escape(desktop_shortcut)}</code></small></td></tr>
-<tr><td>Startup shortcut</td><td>{'FOUND' if startup_shortcut.exists() else 'not found'}<br><small><code>{html_escape(startup_shortcut)}</code></small></td></tr>
+<tr><td>Start at login</td><td>{'ENABLED' if start_at_login.enabled else 'disabled'}<br><small><code>{html_escape(start_at_login.path or '(unsupported)')}</code></small></td></tr>
 </table>
 </div>
 </div>
@@ -949,6 +941,19 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 
 <div class="grid">
 <div class="card">
+<h3>Start at Login</h3>
+<p><strong>Platform:</strong> {html_escape(start_at_login.platform_name)}</p>
+<p><strong>Status:</strong> {'ENABLED' if start_at_login.enabled else 'disabled'}</p>
+<p><small>{html_escape(start_at_login.detail)}</small></p>
+<form method="post" action="/start-at-login/enable" style="display:inline">
+<button type="submit" class="btn-start" {'disabled' if start_at_login.enabled or not start_at_login.supported else ''}>Enable Start at Login</button>
+</form>
+<form method="post" action="/start-at-login/disable" style="display:inline">
+<button type="submit" class="btn-stop" {'disabled' if not start_at_login.enabled or not start_at_login.supported else ''}>Disable Start at Login</button>
+</form>
+</div>
+
+<div class="card">
 <h3>Local Data</h3>
 <table>
 <tr><th>Item</th><th>Value</th></tr>
@@ -967,6 +972,26 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
 </div>
 """
         return layout("Troubleshooting", content)
+
+
+    @app.route("/start-at-login/enable", methods=["POST"])
+    def enable_start_at_login_route() -> Response:
+        try:
+            status = enable_start_at_login()
+            state.log(f"Start at login enabled for {status.platform_name}: {status.path}")
+        except Exception as exc:
+            state.log(f"Could not enable start at login: {exc}")
+        return redirect("/troubleshooting")
+
+
+    @app.route("/start-at-login/disable", methods=["POST"])
+    def disable_start_at_login_route() -> Response:
+        try:
+            status = disable_start_at_login()
+            state.log(f"Start at login disabled for {status.platform_name}.")
+        except Exception as exc:
+            state.log(f"Could not disable start at login: {exc}")
+        return redirect("/troubleshooting")
 
 
     @app.route("/config")
@@ -1048,6 +1073,7 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
     def export_diagnostics() -> Response:
         cfg = load_config()
         redacted_cfg = redacted_config(cfg)
+        start_at_login = get_start_at_login_status()
 
         with state.lock:
             state_snapshot = {
@@ -1083,6 +1109,13 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
                 "runtime_dir": str(Path(config_path()).parent),
             },
             "monitor": state_snapshot,
+            "start_at_login": {
+                "supported": start_at_login.supported,
+                "enabled": start_at_login.enabled,
+                "platform": start_at_login.platform_name,
+                "path": str(start_at_login.path) if start_at_login.path else None,
+                "detail": start_at_login.detail,
+            },
             "settings_summary": {
                 "agency_ids": redacted_cfg.get("agency_ids"),
                 "units": redacted_cfg.get("units"),

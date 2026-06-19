@@ -169,6 +169,8 @@ Phone push test entries are marked as `manual_phone` and as not requiring acknow
 
 PulsePoint Alert Monitor includes a Windows shortcut helper script.
 
+The Troubleshooting page also provides cross-platform **Enable Start at Login** and **Disable Start at Login** controls. These use the current user's Windows Startup folder, macOS LaunchAgents, or Linux XDG autostart directory. No administrator access is required.
+
 ### Create a Desktop Shortcut
 
 From the repository folder, run:

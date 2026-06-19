@@ -9,14 +9,14 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..\..")).Path
 $StartBat = Join-Path $RepoRoot "installers\windows\start.bat"
-$IconPath = Join-Path $RepoRoot "src\pulsepoint_alerts\static\app.ico"
+$IconPath = Join-Path $RepoRoot "assets\app.ico"
 
 if (-not (Test-Path $StartBat)) {
     throw "Could not find start.bat at $StartBat"
 }
 
 if (-not (Test-Path $IconPath)) {
-    $IconPath = Join-Path $RepoRoot "assets\app.ico"
+    $IconPath = Join-Path $RepoRoot "src\pulsepoint_alerts\static\app.ico"
 }
 
 function Get-StartupFolder {
