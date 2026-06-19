@@ -395,3 +395,10 @@ The app includes a read-only Troubleshooting page showing app version, Python/pl
 The RUNNING / STOPPED monitor pill in the top status bar is clickable. Clicking it starts or stops the monitor without returning to the Dashboard.
 
 The app header also displays the PNG app icon inside the program UI. This is separate from the favicon and Windows shortcut `.ico`.
+
+
+## Current Version
+
+Current alpha version: `0.2.0-alpha.1`
+
+See `CHANGELOG.md` for release notes.

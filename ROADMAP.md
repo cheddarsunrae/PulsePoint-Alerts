@@ -309,3 +309,10 @@ Status: planned for later.
 Allow each configured agency to have its own units, with every unit independently assigned to Alert Me or Track Unit(s). Unit IDs must be scoped to their agency so identical apparatus names in different feeds do not collide. Monitoring failures should remain isolated by agency.
 
 For an incident matching a mixture of profiles, Alert Me should take precedence while history and evidence retain every matched unit, agency, and assigned profile in one grouped event. Existing global agency/unit/profile configurations should migrate automatically without changing current behavior.
+
+
+## Version 0.2.0-alpha.1
+
+Status: current alpha checkpoint.
+
+This version reflects the alert-profile, parser-hardening, alert-evidence, troubleshooting, startup-control, and UI-control work completed after the original `0.1.0-alpha.1` technical preview.
