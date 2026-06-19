@@ -166,6 +166,24 @@ def active_unit_incident_signatures(
 
     return signatures, units_found
 
+
+def maybe_record_active_missing_snapshot(
+    state: RuntimeState,
+    page_text: str,
+    snapshot_already_saved: bool,
+) -> bool:
+    """Record one full-page diagnostic snapshot per missing-Active streak."""
+    if snapshot_already_saved:
+        return True
+
+    snapshot_path = state.record_debug_snapshot("active-section-missing", page_text)
+    if snapshot_path is not None:
+        state.log(f"Debug snapshot saved for missing Active section: {snapshot_path}")
+    else:
+        state.log("Debug snapshot could not be saved for missing Active section.")
+
+    return True
+
 def monitor_loop(state: RuntimeState) -> None:
     cfg = load_config()
     agency_ids = cfg["agency_ids"].strip()
@@ -196,6 +214,7 @@ def monitor_loop(state: RuntimeState) -> None:
     baseline_hash: str | None = None
     unit_mode_baseline_captured = False
     last_refresh = 0.0
+    active_missing_snapshot_saved = False
 
     try:
         with sync_playwright() as p:
@@ -256,7 +275,13 @@ def monitor_loop(state: RuntimeState) -> None:
                                 "Active section not found; skipping unit scan this cycle "
                                 "to avoid matching Recent/closed incidents."
                             )
+                            active_missing_snapshot_saved = maybe_record_active_missing_snapshot(
+                                state,
+                                text,
+                                active_missing_snapshot_saved,
+                            )
                         else:
+                            active_missing_snapshot_saved = False
                             active_signatures, found_units = active_unit_incident_signatures(active_text, unit_re)
 
                         current_signatures = set(active_signatures)

@@ -126,6 +126,42 @@ class RuntimeState:
         self._write_alert_evidence([])
 
 
+    def debug_snapshots_dir(self) -> Path:
+        return app_dir() / "debug_snapshots"
+
+
+    def record_debug_snapshot(self, reason: str, text: str) -> Path | None:
+        """Write a local diagnostic text snapshot and return its path.
+
+        Snapshots may contain full PulsePoint page text, including incident details.
+        They are intentionally local-only troubleshooting artifacts.
+        """
+        try:
+            safe_reason = "".join(
+                char.lower() if char.isalnum() else "-"
+                for char in str(reason).strip()
+            ).strip("-") or "snapshot"
+            while "--" in safe_reason:
+                safe_reason = safe_reason.replace("--", "-")
+
+            snapshot_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            path = self.debug_snapshots_dir() / f"{snapshot_id}_{safe_reason}.txt"
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+            header = (
+                "PulsePointer Alerter debug snapshot\n"
+                f"Reason: {reason}\n"
+                f"Captured: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                "Warning: this file may contain PulsePoint call details, addresses, and units.\n"
+                "\n--- PAGE TEXT ---\n"
+            )
+            path.write_text(header + str(text), encoding="utf-8", errors="replace")
+            return path
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Debug snapshot save error: {exc}", flush=True)
+            return None
+
+
     def load_alert_history(self) -> None:
         try:
             path = self.alert_history_path()

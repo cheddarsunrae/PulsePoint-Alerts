@@ -407,3 +407,12 @@ See `CHANGELOG.md` for release notes.
 ### Start-at-login source checkout behavior
 
 When running from a source checkout on Windows, the Start at Login control uses `installers/windows/start.bat` so startup launches the app through the same tested path used for manual startup. If the app is packaged or installed differently, it falls back to `python -m pulsepoint_alerts`.
+
+
+## Debug Snapshots
+
+When the monitor cannot find the PulsePoint Active section, it fails safe and does not scan the whole page. To support troubleshooting, PulsePointer Alerter records one full-page text snapshot per missing-Active streak under the local runtime folder:
+
+`debug_snapshots/`
+
+These files are local diagnostic artifacts and may contain PulsePoint page text, call details, addresses, and unit information. Do not post them publicly unless reviewed/redacted.

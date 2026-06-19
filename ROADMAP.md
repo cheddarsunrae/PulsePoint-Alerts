@@ -323,3 +323,10 @@ This version reflects the alert-profile, parser-hardening, alert-evidence, troub
 Status: implemented.
 
 Windows start-at-login now prefers the repository `installers/windows/start.bat` when running from a source checkout, matching the known-good manual startup path. macOS and Linux startup files now include source-checkout working-directory hints when available.
+
+
+## Missing-Active Debug Snapshots
+
+Status: implemented.
+
+When the Active section is unavailable, the monitor keeps fail-safe behavior and does not scan the whole page. It now records one local full-page text snapshot per missing-Active streak for troubleshooting. Future work may add log filtering, retention controls, and UI access to recent debug snapshots.
