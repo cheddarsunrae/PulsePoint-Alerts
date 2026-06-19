@@ -330,3 +330,17 @@ Windows start-at-login now prefers the repository `installers/windows/start.bat`
 Status: implemented.
 
 When the Active section is unavailable, the monitor keeps fail-safe behavior and does not scan the whole page. It now records one local full-page text snapshot per missing-Active streak for troubleshooting. Future work may add log filtering, retention controls, and UI access to recent debug snapshots.
+
+
+## Debug Snapshot Visibility
+
+Status: implemented.
+
+Troubleshooting now lists recent local debug snapshot files and provides a read-only in-browser view with a privacy warning. This supports investigation of missing Active-section page states without changing parser or alert behavior.
+
+
+## Public PDF User Guide
+
+Status: implemented.
+
+Added a public-facing PDF guide under `docs/` using the PulsePointer Alerter name and current unit-awareness / backup-alerting framing.

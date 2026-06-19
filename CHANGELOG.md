@@ -4,6 +4,8 @@
 
 ### Added
 
+- Public PDF user guide for PulsePointer Alerter under `docs/`.
+- Troubleshooting view for recent local debug snapshots.
 - Alert profiles: Alert Me and Track Unit(s).
 - Alert evidence snapshots for real monitor alerts.
 - Troubleshooting page.

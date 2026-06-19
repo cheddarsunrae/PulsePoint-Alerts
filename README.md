@@ -416,3 +416,15 @@ When the monitor cannot find the PulsePoint Active section, it fails safe and do
 `debug_snapshots/`
 
 These files are local diagnostic artifacts and may contain PulsePoint page text, call details, addresses, and unit information. Do not post them publicly unless reviewed/redacted.
+
+
+## Public User Guide
+
+A public PDF user guide is available in:
+
+`docs/PulsePointer_Alerter_User_Guide_v0.2.0-alpha.1.pdf`
+
+The editable DOCX source is kept locally and is not required for normal users.
+
+
+Troubleshooting can list recent debug snapshots created when the PulsePoint Active section is unavailable. Snapshot files are local diagnostic artifacts and may contain call/location details.

@@ -310,6 +310,43 @@ def stop_monitor(log_message: str = "Monitor stop requested.") -> None:
     state.log(log_message)
 
 
+def recent_debug_snapshots(limit: int = 20) -> list[dict[str, str]]:
+    """Return recent local debug snapshot metadata for display."""
+    snapshot_dir = state.debug_snapshots_dir()
+    if not snapshot_dir.exists():
+        return []
+
+    items: list[dict[str, str]] = []
+    for path in sorted(snapshot_dir.glob("*.txt"), key=lambda item: item.stat().st_mtime, reverse=True)[:limit]:
+        try:
+            stat = path.stat()
+            items.append(
+                {
+                    "name": path.name,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                    "size": f"{stat.st_size:,} bytes",
+                }
+            )
+        except OSError:
+            continue
+    return items
+
+
+def safe_debug_snapshot_path(filename: str) -> Path | None:
+    """Resolve a snapshot filename safely under the debug snapshot directory."""
+    base = state.debug_snapshots_dir().resolve()
+    candidate = (base / filename).resolve()
+
+    if candidate == base or base not in candidate.parents:
+        return None
+    if candidate.suffix.lower() != ".txt":
+        return None
+    if not candidate.exists() or not candidate.is_file():
+        return None
+    return candidate
+
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
 
@@ -845,6 +882,19 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         cfg = load_config()
         runtime_dir = Path(config_path()).parent
         start_at_login = get_start_at_login_status()
+        snapshot_rows = ""
+        for snapshot in recent_debug_snapshots():
+            name = html_escape(snapshot["name"])
+            snapshot_rows += (
+                "<tr>"
+                f"<td><code>{name}</code></td>"
+                f"<td>{html_escape(snapshot['modified'])}</td>"
+                f"<td>{html_escape(snapshot['size'])}</td>"
+                f"<td><a href='/debug-snapshots/{name}'>View</a></td>"
+                "</tr>"
+            )
+        if not snapshot_rows:
+            snapshot_rows = '<tr><td colspan="4"><em>No debug snapshots saved yet.</em></td></tr>'
 
         try:
             import importlib.util
@@ -954,6 +1004,15 @@ This page is primarily read-only. The Start at Login controls change only the cu
 </div>
 
 <div class="card">
+<h3>Debug Snapshots</h3>
+<p><strong>Warning:</strong> debug snapshots may contain PulsePoint page text, call details, locations, and unit information. Do not post publicly unless reviewed/redacted.</p>
+<table>
+<tr><th>File</th><th>Modified</th><th>Size</th><th>Action</th></tr>
+{snapshot_rows}
+</table>
+</div>
+
+<div class="card">
 <h3>Local Data</h3>
 <table>
 <tr><th>Item</th><th>Value</th></tr>
@@ -972,6 +1031,31 @@ This page is primarily read-only. The Start at Login controls change only the cu
 </div>
 """
         return layout("Troubleshooting", content)
+
+
+    @app.route("/debug-snapshots/<path:filename>")
+    def view_debug_snapshot(filename: str) -> Response:
+        snapshot_path = safe_debug_snapshot_path(filename)
+        if snapshot_path is None:
+            return Response("Debug snapshot not found.", status=404, mimetype="text/plain")
+
+        try:
+            text = snapshot_path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            return Response(f"Could not read debug snapshot: {exc}", status=500, mimetype="text/plain")
+
+        content = f"""
+<h2>Debug Snapshot</h2>
+<div class="warn">
+<strong>Privacy warning:</strong> this local file may contain PulsePoint page text, call details, locations, and unit information. Do not post publicly unless reviewed/redacted.
+</div>
+<div class="card">
+<p><strong>File:</strong> <code>{html_escape(snapshot_path.name)}</code></p>
+<p><a href="/troubleshooting">Back to Troubleshooting</a></p>
+<pre style="white-space:pre-wrap; background:#111; color:#eee; padding:12px; border-radius:8px; overflow:auto;">{html_escape(text)}</pre>
+</div>
+"""
+        return layout("Debug Snapshot", content)
 
 
     @app.route("/start-at-login/enable", methods=["POST"])
