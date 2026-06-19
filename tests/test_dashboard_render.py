@@ -85,3 +85,78 @@ def test_troubleshooting_page_renders():
     assert "Troubleshooting" in body
     assert "Monitor Health" in body
     assert "Export Diagnostics ZIP" in body
+
+
+def test_status_bar_monitor_pill_is_clickable():
+    app = create_app()
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'action="/toggle-monitor"' in body
+    assert "Click to start/stop monitor" in body
+
+
+def test_header_displays_png_icon():
+    app = create_app()
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "/static/app-icon.png" in body
+    assert "brand-icon" in body
+
+
+def test_toggle_monitor_starts_when_stopped(monkeypatch):
+    from pulsepoint_alerts.app import state
+
+    class DummyThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            pass
+
+    monkeypatch.setattr("pulsepoint_alerts.app.threading.Thread", DummyThread)
+
+    app = create_app()
+    client = app.test_client()
+
+    with state.lock:
+        state.monitor_running = False
+        state.monitor_stop.clear()
+
+    response = client.post("/toggle-monitor")
+
+    assert response.status_code == 302
+
+    with state.lock:
+        running = state.monitor_running
+        state.monitor_running = False
+        state.monitor_stop.set()
+
+    assert running is True
+
+
+def test_toggle_monitor_stops_when_running():
+    from pulsepoint_alerts.app import state
+
+    app = create_app()
+    client = app.test_client()
+
+    with state.lock:
+        state.monitor_running = True
+        state.monitor_stop.clear()
+
+    response = client.post("/toggle-monitor")
+
+    assert response.status_code == 302
+    assert state.monitor_stop.is_set()
+
+    with state.lock:
+        state.monitor_running = False
+        state.monitor_stop.clear()

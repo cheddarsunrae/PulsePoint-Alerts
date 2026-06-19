@@ -60,6 +60,7 @@ Closed incident
 def test_active_unit_signature_detects_monitored_unit():
     active = """
 Medical Emergency
+5:42 PM
 123 Main St
 Patient contact
 ?M231
@@ -77,6 +78,7 @@ E201
 def test_active_unit_signature_detects_multiple_units_in_same_incident():
     active = """
 Structure Fire
+5:42 PM
 789 Broadway
 ^E201
 ?M231

@@ -375,3 +375,10 @@ Evidence may contain call details or addresses from PulsePoint Active and should
 ## Troubleshooting Page
 
 The app includes a read-only Troubleshooting page showing app version, Python/platform information, Playwright package status, runtime paths, shortcut status, monitor health, configured units, alert history count, evidence snapshot count, and quick export buttons for diagnostics, alert history, and redacted config.
+
+
+## Top-Bar Monitor Toggle
+
+The RUNNING / STOPPED monitor pill in the top status bar is clickable. Clicking it starts or stops the monitor without returning to the Dashboard.
+
+The app header also displays the PNG app icon inside the program UI. This is separate from the favicon and Windows shortcut `.ico`.

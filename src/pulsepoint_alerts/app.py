@@ -219,7 +219,7 @@ def layout(title: str, content: str) -> Response:
 <link rel="shortcut icon" href="/favicon.ico">
 <style>
 body {{ font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; color: #222; }}
-header {{ background: #222; color: white; padding: 18px 28px; }} header h1 {{ margin: 0; font-size: 24px; }}
+header {{ background: #222; color: white; padding: 18px 28px; }} header h1 {{ margin: 0; font-size: 24px; display: flex; align-items: center; gap: 12px; }} .brand-icon {{ width: 36px; height: 36px; object-fit: contain; border-radius: 8px; }}
 nav {{ background: #333; padding: 0 20px; }} nav a {{ color: white; display: inline-block; padding: 12px 14px; text-decoration: none; }} nav a:hover {{ background: #555; }}
 main {{ max-width: 1100px; margin: 25px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 6px #ccc; }}
 .card {{ border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 14px 0; background: #fff; }}
@@ -244,6 +244,8 @@ pre {{ background: #111; color: #0f0; padding: 15px; height: 400px; overflow-y: 
 code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }} th, td {{ border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }}
 .statusbar {{ background: #eee; padding: 10px 20px; font-size: 14px; }}
 .status-pill {{ display: inline-block; padding: 3px 8px; border-radius: 999px; font-weight: bold; }}
+.status-toggle {{ border-radius: 999px; padding: 3px 8px; margin: 0; font-size: 14px; line-height: 1.2; cursor: pointer; vertical-align: baseline; }}
+.status-toggle:hover {{ filter: brightness(0.95); }}
 .status-running {{ background: #d4edda; color: #155724; border: 1px solid #28a745; }}
 .status-stopped {{ background: #f8d7da; color: #721c24; border: 1px solid #dc3545; }}
 .status-warn {{ background: #fff3cd; color: #856404; border: 1px solid #ffc107; }}
@@ -253,9 +255,26 @@ code {{ background: #eee; padding: 2px 4px; }} small {{ color: #555; }} table {{
 .help-tip .help-text {{ visibility: hidden; opacity: 0; transition: opacity 0.15s ease-in-out; width: 280px; background: #222; color: #fff; text-align: left; border-radius: 6px; padding: 10px; position: absolute; z-index: 9999; top: 24px; left: -10px; box-shadow: 0 2px 8px #777; font-weight: normal; line-height: 1.35; }}
 .help-tip:hover .help-text, .help-tip:focus .help-text {{ visibility: visible; opacity: 1; }}
 </style></head>
-<body><header><h1>PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
-<div class="statusbar"><strong>Monitor:</strong> <span class="status-pill {monitor_class}">{running_text}</span> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span></div>
+<body><header><h1><img src="/static/app-icon.png" alt="PulsePoint Alert Monitor icon" class="brand-icon"> PulsePoint Alert Monitor <span style="font-size:14px;font-weight:normal;">v{__version__}</span></h1></header>{nav()}
+<div class="statusbar"><strong>Monitor:</strong> <form method="post" action="/toggle-monitor" style="display:inline"><button type="submit" class="status-pill status-toggle {monitor_class}" title="Click to start/stop monitor">{running_text}</button></form> | <strong>Mode:</strong> {mode} | <strong>Alert:</strong> <span class="status-pill {alert_class}">{active_text}</span> {html_escape(reason)} | <strong>Agency IDs:</strong> {active_agency} | <strong>Units:</strong> {active_units} | <strong>Health:</strong> <span class="status-pill {health_class}">{health_label}</span></div>
 {alert_controls}<main>{content}</main></body></html>""", mimetype="text/html")
+
+
+
+
+def start_monitor_if_needed(log_message: str = "Monitor start requested.") -> bool:
+    """Start the monitor thread if it is not already running."""
+    with state.lock:
+        if state.monitor_running:
+            state.log("Monitor start ignored: monitor is already running.")
+            return False
+
+        state.monitor_running = True
+
+    state.monitor_stop.clear()
+    threading.Thread(target=monitor_loop, args=(state,), daemon=True).start()
+    state.log(log_message)
+    return True
 
 
 def create_app() -> Flask:
@@ -1128,6 +1147,21 @@ This page is read-only. It is intended to help troubleshoot install, monitor, al
         try: set_keep_awake(False)
         except Exception: pass
         state.log("Monitor stop requested."); return redirect("/")
+
+
+
+    @app.route("/toggle-monitor", methods=["POST"])
+    def toggle_monitor() -> Response:
+        with state.lock:
+            running = state.monitor_running
+
+        if running:
+            state.monitor_stop.set()
+            state.log("Monitor stop requested from top status bar.")
+        else:
+            start_monitor_if_needed("Monitor start requested from top status bar.")
+
+        return redirect(request.referrer or "/")
 
 
     @app.route("/refresh-now", methods=["POST"])

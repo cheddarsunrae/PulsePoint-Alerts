@@ -280,3 +280,10 @@ Real monitor alerts persist local evidence snapshots containing the matched unit
 Status: implemented.
 
 Added a read-only troubleshooting page with app/runtime health, install-path checks, shortcut status, monitor health, evidence/history counts, and quick export actions.
+
+
+## Top-Bar Monitor Toggle
+
+Status: implemented.
+
+The RUNNING / STOPPED monitor status pill in the top bar can now be clicked to start or stop monitoring from any page. The program header also displays the PNG app icon directly in the UI.
