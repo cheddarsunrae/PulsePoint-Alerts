@@ -25,6 +25,14 @@ def home_directory() -> Path:
     return Path.home()
 
 
+def source_repo_root() -> Path | None:
+    """Return the source checkout root when running from the repository layout."""
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "src" / "pulsepoint_alerts").exists():
+        return candidate
+    return None
+
+
 def launch_arguments() -> list[str]:
     if getattr(sys, "frozen", False):
         return [sys.executable]
@@ -96,11 +104,24 @@ def enable_start_at_login() -> StartAtLoginStatus:
     arguments = launch_arguments()
 
     if system_name == "Windows":
-        command = " ".join(_quote_windows_argument(argument) for argument in arguments)
-        path.write_bytes(f"@echo off\r\nstart \"\" /min {command}\r\n".encode("utf-8"))
+        repo_root = source_repo_root()
+        start_bat = repo_root / "installers" / "windows" / "start.bat" if repo_root else None
+
+        if start_bat and start_bat.exists():
+            path.write_bytes(
+                (
+                    "@echo off\r\n"
+                    f"cd /d {_quote_windows_argument(str(repo_root))}\r\n"
+                    f"start \"\" /min {_quote_windows_argument(str(start_bat))}\r\n"
+                ).encode("utf-8")
+            )
+        else:
+            command = " ".join(_quote_windows_argument(argument) for argument in arguments)
+            path.write_bytes(f"@echo off\r\nstart \"\" /min {command}\r\n".encode("utf-8"))
     elif system_name == "Darwin":
         runtime_dir = app_dir()
         runtime_dir.mkdir(parents=True, exist_ok=True)
+        repo_root = source_repo_root()
         payload = {
             "Label": "com.cheddarsunrae.pulsepoint-alerts",
             "ProgramArguments": arguments,
@@ -109,26 +130,31 @@ def enable_start_at_login() -> StartAtLoginStatus:
             "StandardOutPath": str(runtime_dir / "start-at-login.log"),
             "StandardErrorPath": str(runtime_dir / "start-at-login-error.log"),
         }
+        if repo_root is not None:
+            payload["WorkingDirectory"] = str(repo_root)
         with path.open("wb") as stream:
             plistlib.dump(payload, stream)
     elif system_name == "Linux":
         command = " ".join(_quote_desktop_argument(argument) for argument in arguments)
-        path.write_text(
-            "\n".join(
-                [
-                    "[Desktop Entry]",
-                    "Type=Application",
-                    "Version=1.0",
-                    "Name=PulsePoint Alert Monitor",
-                    "Comment=Start PulsePoint Alert Monitor at login",
-                    f"Exec={command}",
-                    "Terminal=false",
-                    "X-GNOME-Autostart-enabled=true",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
+        repo_root = source_repo_root()
+        lines = [
+            "[Desktop Entry]",
+            "Type=Application",
+            "Version=1.0",
+            "Name=PulsePoint Alert Monitor",
+            "Comment=Start PulsePoint Alert Monitor at login",
+            f"Exec={command}",
+        ]
+        if repo_root is not None:
+            lines.append(f"Path={repo_root}")
+        lines.extend(
+            [
+                "Terminal=false",
+                "X-GNOME-Autostart-enabled=true",
+                "",
+            ]
         )
+        path.write_text("\n".join(lines), encoding="utf-8")
 
     return get_start_at_login_status()
 

@@ -402,3 +402,8 @@ The app header also displays the PNG app icon inside the program UI. This is sep
 Current alpha version: `0.2.0-alpha.1`
 
 See `CHANGELOG.md` for release notes.
+
+
+### Start-at-login source checkout behavior
+
+When running from a source checkout on Windows, the Start at Login control uses `installers/windows/start.bat` so startup launches the app through the same tested path used for manual startup. If the app is packaged or installed differently, it falls back to `python -m pulsepoint_alerts`.

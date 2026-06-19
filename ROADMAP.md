@@ -316,3 +316,10 @@ For an incident matching a mixture of profiles, Alert Me should take precedence 
 Status: current alpha checkpoint.
 
 This version reflects the alert-profile, parser-hardening, alert-evidence, troubleshooting, startup-control, and UI-control work completed after the original `0.1.0-alpha.1` technical preview.
+
+
+## Start-at-login source checkout hardening
+
+Status: implemented.
+
+Windows start-at-login now prefers the repository `installers/windows/start.bat` when running from a source checkout, matching the known-good manual startup path. macOS and Linux startup files now include source-checkout working-directory hints when available.

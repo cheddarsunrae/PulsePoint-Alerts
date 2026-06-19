@@ -5,10 +5,16 @@ import pytest
 from pulsepoint_alerts import autostart
 
 
-def test_windows_start_at_login_creates_and_removes_startup_command(monkeypatch, tmp_path):
+def test_windows_start_at_login_uses_source_start_bat_when_available(monkeypatch, tmp_path):
     startup_root = tmp_path / "AppData" / "Roaming"
+    repo_root = tmp_path / "repo"
+    start_bat = repo_root / "installers" / "windows" / "start.bat"
+    start_bat.parent.mkdir(parents=True)
+    start_bat.write_text("@echo off\npython -m pulsepoint_alerts\n", encoding="utf-8")
+
     monkeypatch.setenv("APPDATA", str(startup_root))
     monkeypatch.setattr(autostart.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(autostart, "source_repo_root", lambda: repo_root)
     monkeypatch.setattr(autostart.sys, "executable", r"C:\Program Files\Python\python.exe")
 
     status = autostart.enable_start_at_login()
@@ -16,12 +22,29 @@ def test_windows_start_at_login_creates_and_removes_startup_command(monkeypatch,
     assert status.enabled is True
     assert status.path.name == "PulsePoint Alert Monitor.cmd"
     contents = status.path.read_text(encoding="utf-8")
-    assert '"C:\\Program Files\\Python\\python.exe"' in contents
-    assert '"-m" "pulsepoint_alerts"' in contents
+    assert "cd /d" in contents
+    assert str(repo_root) in contents
+    assert str(start_bat) in contents
 
     status = autostart.disable_start_at_login()
     assert status.enabled is False
     assert not autostart.start_at_login_path().exists()
+
+
+def test_windows_start_at_login_falls_back_to_python_module(monkeypatch, tmp_path):
+    startup_root = tmp_path / "AppData" / "Roaming"
+    monkeypatch.setenv("APPDATA", str(startup_root))
+    monkeypatch.setattr(autostart.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(autostart, "source_repo_root", lambda: None)
+    monkeypatch.setattr(autostart.sys, "executable", r"C:\Program Files\Python\python.exe")
+
+    status = autostart.enable_start_at_login()
+
+    contents = status.path.read_text(encoding="utf-8")
+    assert '"C:\\Program Files\\Python\\python.exe"' in contents
+    assert '"-m" "pulsepoint_alerts"' in contents
+
+    assert autostart.disable_start_at_login().enabled is False
 
 
 def test_macos_start_at_login_creates_launch_agent(monkeypatch, tmp_path):
@@ -29,6 +52,7 @@ def test_macos_start_at_login_creates_launch_agent(monkeypatch, tmp_path):
     monkeypatch.setattr(autostart, "home_directory", lambda: tmp_path)
     monkeypatch.setattr(autostart, "app_dir", lambda: tmp_path / "runtime")
     monkeypatch.setattr(autostart.sys, "executable", "/usr/local/bin/python3")
+    monkeypatch.setattr(autostart, "source_repo_root", lambda: None)
 
     status = autostart.enable_start_at_login()
 
@@ -46,6 +70,7 @@ def test_linux_start_at_login_creates_xdg_desktop_entry(monkeypatch, tmp_path):
     monkeypatch.setattr(autostart, "home_directory", lambda: tmp_path)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setattr(autostart.sys, "executable", "/opt/PulsePoint Python/bin/python3")
+    monkeypatch.setattr(autostart, "source_repo_root", lambda: None)
 
     status = autostart.enable_start_at_login()
 
