@@ -293,7 +293,24 @@ def monitor_loop(state: RuntimeState) -> None:
                                 if details:
                                     reason = f"{reason}\n\nCall details:\n{details}"
 
-                                trigger_alert(reason, state)
+                                evidence = {
+                                    "source": "monitor",
+                                    "agency_ids": agency_ids,
+                                    "configured_units": list(units),
+                                    "matched_units": sorted(alert_units),
+                                    "new_signatures": sorted(new_signatures),
+                                    "new_incident_blocks": {
+                                        signature: active_signatures.get(signature, "")
+                                        for signature in sorted(new_signatures)
+                                    },
+                                    "current_signatures": sorted(current_signatures),
+                                    "previously_present_signatures": sorted(previously_present_signatures),
+                                    "active_section_found": active_section_found,
+                                    "active_section_text": active_text or "",
+                                    "signature_method": "incident-block-stable-text-with-unit-only-lines-ignored",
+                                }
+
+                                trigger_alert(reason, state, evidence=evidence)
                                 last_alert_time = now
 
                             previously_present_units = found_units

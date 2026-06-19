@@ -22,6 +22,7 @@ from .runtime import RuntimeState
 
 state = RuntimeState()
 state.load_alert_history()
+state.load_alert_evidence()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
@@ -529,10 +530,16 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
         for event in events:
             ack = event.get("acknowledged", "no")
             ack_class = "good" if ack == "yes" else "warn"
+            evidence_id = event.get("evidence_id", "")
+            evidence_cell = (
+                f"<a href='/history/evidence/{html_escape(evidence_id)}'>View</a>"
+                if evidence_id else ""
+            )
             rows += (
                 "<tr>"
                 f"<td>{html_escape(event.get('time', ''))}</td>"
                 f"<td>{html_escape(event.get('source', ''))}</td>"
+                f"<td>{evidence_cell}</td>"
                 f"<td>{html_escape(event.get('reason', ''))}</td>"
                 f"<td>{html_escape(event.get('desktop', ''))}</td>"
                 f"<td>{html_escape(event.get('phone', ''))}</td>"
@@ -542,7 +549,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             )
 
         if not rows:
-            rows = '<tr><td colspan="7"><em>No alert history yet.</em></td></tr>'
+            rows = '<tr><td colspan="8"><em>No alert history yet.</em></td></tr>'
 
         content = f"""
 <h2>Alert History</h2>
@@ -555,6 +562,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <tr>
 <th>Time</th>
 <th>Source</th>
+<th>Evidence</th>
 <th>Reason</th>
 <th>Desktop</th>
 <th>Phone</th>
@@ -569,11 +577,79 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 
 
 
+
+    @app.route("/history/evidence/<evidence_id>")
+    def history_evidence_page(evidence_id: str) -> Response:
+        evidence = state.find_alert_evidence(evidence_id)
+        if evidence is None:
+            content = f"""
+<h2>Alert Evidence</h2>
+<div class="danger">No alert evidence found for ID <code>{html_escape(evidence_id)}</code>.</div>
+"""
+            return layout("Alert Evidence", content)
+
+        new_blocks = evidence.get("new_incident_blocks", {})
+        block_rows = ""
+        if isinstance(new_blocks, dict):
+            for signature, block in new_blocks.items():
+                block_rows += (
+                    "<tr>"
+                    f"<td><code>{html_escape(str(signature)[:16])}</code></td>"
+                    f"<td><pre style='height:180px'>{html_escape(block)}</pre></td>"
+                    "</tr>"
+                )
+
+        if not block_rows:
+            block_rows = '<tr><td colspan="2"><em>No incident block evidence stored.</em></td></tr>'
+
+        raw_json = json.dumps(evidence, indent=2, default=str)
+        active_section = str(evidence.get("active_section_text", ""))
+
+        content = f"""
+<h2>Alert Evidence</h2>
+
+<div class="warn">
+<strong>Privacy:</strong> This page may contain call details and addresses captured from PulsePoint Active at the moment of alert.
+</div>
+
+<div class="card">
+<table>
+<tr><th>Field</th><th>Value</th></tr>
+<tr><td>Evidence ID</td><td><code>{html_escape(evidence.get("id", ""))}</code></td></tr>
+<tr><td>Time</td><td>{html_escape(evidence.get("time", ""))}</td></tr>
+<tr><td>Agency IDs</td><td><code>{html_escape(evidence.get("agency_ids", ""))}</code></td></tr>
+<tr><td>Configured units</td><td><code>{html_escape(", ".join(evidence.get("configured_units", [])) if isinstance(evidence.get("configured_units"), list) else evidence.get("configured_units", ""))}</code></td></tr>
+<tr><td>Matched units</td><td><code>{html_escape(", ".join(evidence.get("matched_units", [])) if isinstance(evidence.get("matched_units"), list) else evidence.get("matched_units", ""))}</code></td></tr>
+<tr><td>Signature method</td><td><code>{html_escape(evidence.get("signature_method", ""))}</code></td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>New Incident Blocks That Triggered</h3>
+<table>
+<tr><th>Signature</th><th>Incident Block</th></tr>
+{block_rows}
+</table>
+</div>
+
+<div class="card">
+<h3>Raw Active Section at Alert Time</h3>
+<pre>{html_escape(active_section[:20000])}</pre>
+</div>
+
+<div class="card">
+<h3>Full Evidence JSON</h3>
+<pre>{html_escape(raw_json[:30000])}</pre>
+</div>
+"""
+        return layout("Alert Evidence", content)
+
+
     @app.route("/history/export.csv")
     def export_history_csv() -> Response:
         events = state.alert_history(500)
         output = io.StringIO()
-        fieldnames = ["time", "source", "reason", "desktop", "phone", "acknowledged", "ack_time"]
+        fieldnames = ["time", "source", "evidence_id", "reason", "desktop", "phone", "acknowledged", "ack_time"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -590,7 +666,8 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
     @app.route("/history/clear", methods=["POST"])
     def clear_history() -> Response:
         state.clear_alert_history()
-        state.log("Alert history cleared.")
+        state.clear_alert_evidence()
+        state.log("Alert history and evidence cleared.")
         return redirect("/history")
 
 
@@ -792,6 +869,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
                 "active_section_found": getattr(state, "active_section_found", None),
             }
             alert_history = list(getattr(state, "alert_events", []))[-200:]
+            alert_evidence = list(getattr(state, "alert_evidence", []))[-100:]
 
         recent_logs = state.logs(200)
 
@@ -826,6 +904,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             "counts": {
                 "recent_log_lines": len(recent_logs),
                 "alert_history_events_included": len(alert_history),
+                "alert_evidence_snapshots_included": len(alert_evidence),
             },
         }
 
@@ -836,6 +915,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
             archive.writestr("redacted_config.json", json.dumps(redacted_cfg, indent=2))
             archive.writestr("recent_logs.txt", "\n".join(recent_logs))
             archive.writestr("alert_history_recent.json", json.dumps(alert_history, indent=2))
+            archive.writestr("alert_evidence_recent.json", json.dumps(alert_evidence, indent=2))
 
         buffer.seek(0)
 

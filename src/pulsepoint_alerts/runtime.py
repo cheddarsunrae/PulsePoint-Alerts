@@ -13,6 +13,7 @@ from .config import app_dir
 
 
 HISTORY_LIMIT = 500
+EVIDENCE_LIMIT = 100
 
 
 @dataclass
@@ -25,6 +26,7 @@ class RuntimeState:
     alert_reason: str = ""
     log_lines: list[str] = field(default_factory=list)
     alert_events: list[dict[str, str]] = field(default_factory=list)
+    alert_evidence: list[dict[str, Any]] = field(default_factory=list)
     last_check_time: str = ""
     last_success_time: str = ""
     last_refresh_time: str = ""
@@ -46,6 +48,83 @@ class RuntimeState:
             tmp_path.replace(path)
         except Exception as exc:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert history save error: {exc}", flush=True)
+
+
+    def alert_evidence_path(self) -> Path:
+        return app_dir() / "alert_evidence.json"
+
+
+    def _write_alert_evidence(self, evidence_items: list[dict[str, Any]]) -> None:
+        try:
+            path = self.alert_evidence_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = path.with_suffix(".json.tmp")
+            with tmp_path.open("w", encoding="utf-8") as f:
+                json.dump(evidence_items[-EVIDENCE_LIMIT:], f, indent=2)
+            tmp_path.replace(path)
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert evidence save error: {exc}", flush=True)
+
+
+    def load_alert_evidence(self) -> None:
+        try:
+            path = self.alert_evidence_path()
+            if not path.exists():
+                return
+            with path.open("r", encoding="utf-8") as f:
+                data: Any = json.load(f)
+            if not isinstance(data, list):
+                return
+
+            evidence_items: list[dict[str, Any]] = []
+            for item in data:
+                if isinstance(item, dict):
+                    evidence_items.append(item)
+
+            with self.lock:
+                self.alert_evidence = evidence_items[-EVIDENCE_LIMIT:]
+
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Loaded {len(evidence_items[-EVIDENCE_LIMIT:])} alert evidence snapshots.", flush=True)
+        except Exception as exc:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert evidence load error: {exc}", flush=True)
+
+
+    def record_alert_evidence(self, evidence: dict[str, Any]) -> str:
+        evidence_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        item = {
+            "id": evidence_id,
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            **evidence,
+        }
+
+        with self.lock:
+            self.alert_evidence.append(item)
+            del self.alert_evidence[:-EVIDENCE_LIMIT]
+            snapshot = list(self.alert_evidence)
+
+        self._write_alert_evidence(snapshot)
+        return evidence_id
+
+
+    def find_alert_evidence(self, evidence_id: str) -> dict[str, Any] | None:
+        with self.lock:
+            for item in reversed(self.alert_evidence):
+                if str(item.get("id", "")) == str(evidence_id):
+                    return dict(item)
+        return None
+
+
+    def alert_evidence_history(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self.lock:
+            return list(self.alert_evidence[-limit:])
+
+
+    def clear_alert_evidence(self) -> None:
+        with self.lock:
+            self.alert_evidence.clear()
+
+        self._write_alert_evidence([])
+
 
     def load_alert_history(self) -> None:
         try:
@@ -123,6 +202,7 @@ class RuntimeState:
         desktop_enabled: bool,
         phone_enabled: bool,
         source: str = "monitor",
+        evidence_id: str = "",
     ) -> None:
         event = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -132,6 +212,7 @@ class RuntimeState:
             "source": source,
             "acknowledged": "no",
             "ack_time": "",
+            "evidence_id": evidence_id,
         }
         with self.lock:
             self.alert_events.append(event)

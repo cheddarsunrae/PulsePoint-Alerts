@@ -39,3 +39,44 @@ def test_runtime_state_manual_refresh_request_is_consumed_once():
     assert state.consume_manual_refresh() is True
     assert state.consume_manual_refresh() is False
 
+
+
+def test_runtime_alert_evidence_records_and_finds(monkeypatch, tmp_path):
+    import pulsepoint_alerts.runtime as runtime_module
+
+    monkeypatch.setattr(runtime_module, "app_dir", lambda: tmp_path)
+
+    state = RuntimeState()
+    evidence_id = state.record_alert_evidence({
+        "matched_units": ["M231"],
+        "active_section_text": "ACTIVE\nMedical Emergency\n5:42 PM\nROCKY MOUNTAIN RD\nM231",
+    })
+
+    state.record_alert(
+        "test alert",
+        desktop_enabled=True,
+        phone_enabled=True,
+        source="monitor",
+        evidence_id=evidence_id,
+    )
+
+    found = state.find_alert_evidence(evidence_id)
+
+    assert found is not None
+    assert found["matched_units"] == ["M231"]
+    assert state.alert_history()[-1]["evidence_id"] == evidence_id
+
+
+def test_runtime_clear_history_can_clear_evidence(monkeypatch, tmp_path):
+    import pulsepoint_alerts.runtime as runtime_module
+
+    monkeypatch.setattr(runtime_module, "app_dir", lambda: tmp_path)
+
+    state = RuntimeState()
+    evidence_id = state.record_alert_evidence({"matched_units": ["M231"]})
+
+    assert state.find_alert_evidence(evidence_id) is not None
+
+    state.clear_alert_evidence()
+
+    assert state.find_alert_evidence(evidence_id) is None

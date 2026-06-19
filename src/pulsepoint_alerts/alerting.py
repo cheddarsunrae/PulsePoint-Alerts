@@ -202,7 +202,7 @@ def trigger_desktop_alert(reason: str, state: RuntimeState) -> None:
     thread.start()
 
 
-def trigger_alert(reason: str, state: RuntimeState) -> None:
+def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | None = None) -> None:
     cfg = load_config()
     desktop_enabled = bool(cfg.get("desktop_alert_enabled", True))
     phone_enabled = bool(cfg.get("phone_alert_enabled", True))
@@ -219,7 +219,14 @@ def trigger_alert(reason: str, state: RuntimeState) -> None:
             state.alert_active = True
             state.alert_reason = reason
 
-    state.record_alert(reason, desktop_enabled=desktop_enabled, phone_enabled=phone_enabled, source="monitor")
+    evidence_id = state.record_alert_evidence(evidence) if evidence is not None else ""
+    state.record_alert(
+        reason,
+        desktop_enabled=desktop_enabled,
+        phone_enabled=phone_enabled,
+        source="monitor",
+        evidence_id=evidence_id,
+    )
 
     if phone_enabled:
         send_phone_push_for_alert(reason, state)

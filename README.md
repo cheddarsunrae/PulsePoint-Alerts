@@ -359,3 +359,14 @@ This prevents a monitored unit on one incident from being bundled with unrelated
 Incident signatures ignore unit-only lines so responder-list changes, unit-status marker changes, or unit ordering changes do not create duplicate alerts for the same incident.
 
 If incident boundaries cannot be identified, the parser fails safe rather than bundling the entire Active section into one incident.
+
+
+## Alert Evidence Snapshots
+
+Real monitor alerts save a local evidence snapshot at the moment of alert.
+
+Evidence snapshots include the matched monitored units, new incident signatures, triggering incident block text, configured units, agency IDs, signature method, and the raw PulsePoint Active section from that check cycle.
+
+Alert History links to evidence snapshots when available. Diagnostics ZIP exports include recent alert evidence snapshots as `alert_evidence_recent.json`.
+
+Evidence may contain call details or addresses from PulsePoint Active and should be treated as sensitive troubleshooting data.

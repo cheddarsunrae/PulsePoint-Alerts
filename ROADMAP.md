@@ -266,3 +266,10 @@ Planned:
 Status: implemented.
 
 Replaced sliding-window unit matching with incident-block parsing. This prevents unrelated neighboring incidents from triggering alerts merely because an existing monitored-unit incident is nearby in the Active section. Unit status prefixes and unit-only responder list changes are normalized out of incident signatures. If incident boundaries cannot be identified, the parser fails safe instead of bundling the entire Active section.
+
+
+## Alert Evidence Snapshots
+
+Status: implemented.
+
+Real monitor alerts persist local evidence snapshots containing the matched units, triggering incident blocks, signatures, configured monitor settings, and raw Active section text from the alert cycle. Diagnostics ZIP exports include recent evidence snapshots for post-incident troubleshooting.
