@@ -178,9 +178,8 @@ Planned:
 - One-command installer.
 - Mobile-friendly UI polish.
 - Dark mode/theme support.
-- Multi-agency monitoring improvements.
-- Multi-unit alert grouping.
-- Per-unit alert settings.
+- Agency-scoped unit monitoring with per-unit Alert Me / Track Unit(s) profiles.
+- Multi-unit incident grouping across mixed alert profiles.
 - Alert snooze / mute window.
 - Optional local-only logs export.
 - Optional encrypted config storage.
@@ -301,3 +300,12 @@ Added Alert Me and Track Unit(s) profiles. Alert Me retains looping desktop aler
 Status: implemented.
 
 Added current-user interface controls for enabling and disabling start at login on Windows, macOS, and Linux. The app uses the Windows Startup folder, a macOS LaunchAgent, or an XDG autostart desktop entry and reports the active artifact on the Troubleshooting page.
+
+
+## Agency-Scoped Unit Alert Profiles
+
+Status: planned for later.
+
+Allow each configured agency to have its own units, with every unit independently assigned to Alert Me or Track Unit(s). Unit IDs must be scoped to their agency so identical apparatus names in different feeds do not collide. Monitoring failures should remain isolated by agency.
+
+For an incident matching a mixture of profiles, Alert Me should take precedence while history and evidence retain every matched unit, agency, and assigned profile in one grouped event. Existing global agency/unit/profile configurations should migrate automatically without changing current behavior.
