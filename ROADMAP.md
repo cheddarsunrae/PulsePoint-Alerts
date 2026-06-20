@@ -359,3 +359,17 @@ Pushover is the preferred provider for future phone-side acknowledgement trackin
 - stop the laptop alert when a phone acknowledgement is detected
 
 ntfy remains the best free/default provider, but phone-side acknowledgement requires a different design because the phone must reach the local app or an external callback endpoint.
+
+
+## Unit-List Change Baseline Reset
+
+Status: implemented.
+
+When the configured monitored unit list changes while the monitor is running, the app recaptures the unit baseline before alerting. This prevents older already-active incidents from alerting just because they newly match the changed watch list.
+
+
+## ACK/Silence Button States
+
+Status: implemented.
+
+Dashboard ACK/Silence is disabled when there is no active alert and flashes red when an alert is active. Future acknowledgement work will connect Pushover phone acknowledgements to app-side ACK state.

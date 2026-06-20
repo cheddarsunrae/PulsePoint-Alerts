@@ -21,6 +21,7 @@
 
 ### Changed
 
+- Dashboard ACK/Silence button is disabled when no alert is active and flashes red when an alert is active.
 - Hardened Active-section incident parser to split incidents into blocks.
 - Incident signatures now ignore unit-only lines to reduce duplicate alerts from unit roster/status changes.
 - Improved Windows shortcut/startup handling.
@@ -28,6 +29,7 @@
 
 ### Fixed
 
+- Recaptured unit baseline when the monitored unit list changes while running, preventing already-active calls from alerting as new after CSV/watch-list edits.
 - False alerts caused by neighboring non-monitored incidents.
 - Duplicate-alert risk from unit status-marker changes.
 - Lock-safe duplicate start/alert paths to avoid non-reentrant lock deadlocks.

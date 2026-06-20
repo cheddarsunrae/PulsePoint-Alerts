@@ -443,3 +443,13 @@ Recommended options:
 - **Future paid fallback:** Twilio/SMS
 
 Pushover is not required to use the app, but it is the best bargain for the full overnight wake-up and acknowledgement workflow.
+
+
+## Changing Units While Running
+
+If the monitored unit list is changed while the monitor is running, PulsePointer Alerter recaptures the unit baseline before alerting. This prevents already-active calls from alerting simply because a newly added unit now matches the current Active list.
+
+
+## ACK/Silence Button States
+
+The Dashboard ACK/Silence control is disabled and grey when no alert is active. When an alert is active, the button becomes enabled and flashes red to draw attention.

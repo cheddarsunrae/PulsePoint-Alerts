@@ -27,6 +27,30 @@ def build_unit_regex(units: list[str]) -> re.Pattern[str] | None:
     return re.compile(pattern, re.I)
 
 
+def unit_baseline_key(units: list[str]) -> tuple[str, ...]:
+    """Return a stable key for the monitored unit set.
+
+    The key ignores order, whitespace, and case so simple CSV reordering does
+    not force an unnecessary baseline reset.
+    """
+    return tuple(sorted({unit.strip().upper() for unit in units if unit.strip()}))
+
+
+def reset_unit_baseline_if_units_changed(
+    current_units: list[str],
+    last_units_key: tuple[str, ...],
+    baseline_captured: bool,
+    previous_units: set[str],
+    previous_signatures: set[str],
+) -> tuple[tuple[str, ...], bool, set[str], set[str], bool]:
+    """Reset unit-mode baseline state when the configured monitored units change."""
+    current_key = unit_baseline_key(current_units)
+    if current_key == last_units_key:
+        return last_units_key, baseline_captured, previous_units, previous_signatures, False
+
+    return current_key, False, set(), set(), True
+
+
 def page_hash(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", text.strip().upper())
     cleaned = re.sub(r"\b\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b", "", cleaned)
@@ -215,6 +239,7 @@ def monitor_loop(state: RuntimeState) -> None:
     unit_mode_baseline_captured = False
     last_refresh = 0.0
     active_missing_snapshot_saved = False
+    last_unit_baseline_key = unit_baseline_key(units)
 
     try:
         with sync_playwright() as p:
@@ -234,6 +259,25 @@ def monitor_loop(state: RuntimeState) -> None:
                             state.log(f"Sleep prevention refresh error: {exc}")
 
                     units = cfg["units"]
+                    (
+                        last_unit_baseline_key,
+                        unit_mode_baseline_captured,
+                        previously_present_units,
+                        previously_present_signatures,
+                        unit_list_changed,
+                    ) = reset_unit_baseline_if_units_changed(
+                        units,
+                        last_unit_baseline_key,
+                        unit_mode_baseline_captured,
+                        previously_present_units,
+                        previously_present_signatures,
+                    )
+                    if unit_list_changed:
+                        state.log(
+                            "Monitored unit list changed while monitor is running; "
+                            "recapturing unit baseline before alerting."
+                        )
+
                     poll_seconds = max(5, int(cfg["poll_seconds"]))
                     cooldown_seconds = int(cfg.get("cooldown_seconds", 60))
                     refresh_seconds = int(cfg.get("refresh_seconds", 300))

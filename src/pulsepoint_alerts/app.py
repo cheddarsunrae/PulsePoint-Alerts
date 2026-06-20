@@ -228,7 +228,7 @@ def layout(title: str, content: str) -> Response:
 <div class="danger" style="margin: 12px 20px;">
 <strong>ALERT ACTIVE:</strong> {html_escape(reason)}
 <form method="post" action="/ack" style="display:inline; margin-left: 12px;">
-<button type="submit" class="btn-ack">ACK / Silence Alert</button>
+<button type="submit" class="btn-ack btn-ack-active" title="Acknowledge and silence active alert">ACK / Silence Alert</button>
 </form>
 </div>
 """
@@ -251,8 +251,14 @@ button:disabled {{ background: #c9c9c9 !important; color: #666 !important; borde
 .btn-start:hover {{ background: #218838; }}
 .btn-stop {{ background: #dc3545; color: white; border-color: #bd2130; font-weight: bold; }}
 .btn-stop:hover {{ background: #c82333; }}
+@keyframes ackFlash {{
+  0%, 100% {{ background: #b00020; color: white; box-shadow: 0 0 0 rgba(176,0,32,0.0); }}
+  50% {{ background: #ff1f3d; color: white; box-shadow: 0 0 14px rgba(176,0,32,0.75); }}
+}}
 .btn-ack {{ background: #b00020; color: white; border-color: #7a0016; font-weight: bold; }}
 .btn-ack:hover {{ background: #8b0018; }}
+.btn-ack-active {{ animation: ackFlash 1s infinite; }}
+.btn-ack-disabled {{ background: #c9c9c9 !important; color: #666 !important; border-color: #aaa !important; box-shadow: none !important; animation: none !important; }}
 .btn-test {{ background: #ffc107; color: #222; border-color: #d39e00; font-weight: bold; }}
 .btn-test:hover {{ background: #e0a800; }}
 .btn-phone {{ background: #007bff; color: white; border-color: #0062cc; font-weight: bold; }}
@@ -375,6 +381,11 @@ def create_app() -> Flask:
         start_disabled = "disabled" if monitor_running else ""
         stop_disabled = "" if monitor_running else "disabled"
         manual_refresh_disabled = "" if monitor_running else "disabled"
+        alert_active_for_ack = state.alert_active
+        ack_button_disabled = "" if alert_active_for_ack else "disabled"
+        ack_button_class = "btn-ack btn-ack-active" if alert_active_for_ack else "btn-ack btn-ack-disabled"
+        ack_button_label = "ACK / Silence Alert" if alert_active_for_ack else "No Active Alert"
+        ack_button_title = "Acknowledge and silence active alert" if alert_active_for_ack else "No active alert to acknowledge"
         first_run_html = ""
         if not cfg.get("agency_ids") or not cfg.get("units"):
             first_run_html = """
@@ -408,7 +419,7 @@ def create_app() -> Flask:
 </div>
 <div class="card"><h3>Actions</h3><form method="post" action="/start" style="display:inline"><button type="submit" class="btn-start" {start_disabled}>Start Monitor</button></form>
 <form method="post" action="/stop" style="display:inline"><button type="submit" class="btn-stop" {stop_disabled}>Stop Monitor</button></form>
-<form method="post" action="/ack" style="display:inline"><button type="submit" class="btn-ack">ACK / Silence Alert</button></form>
+<form method="post" action="/ack" style="display:inline"><button type="submit" class="{ack_button_class}" {ack_button_disabled} title="{ack_button_title}">{ack_button_label}</button></form>
 <form method="post" action="/test-sound"><button type="submit" class="btn-test">Test Laptop Alert</button></form>
 <form method="post" action="/test-push"><button type="submit" class="btn-phone">Test Phone Push</button></form><form method="post" action="/refresh-now" style="display:inline"><button type="submit" class="btn-phone" {manual_refresh_disabled}>Refresh PulsePoint Now</button></form></div></div>
 <div class="card"><h3>Recent Log</h3><pre>{html_escape(chr(10).join(logs))}</pre></div>"""
