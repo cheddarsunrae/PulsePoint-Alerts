@@ -398,7 +398,7 @@ def create_app() -> Flask:
 </div>
 """
         content = f"""
-{first_run_html}<h2>Dashboard</h2><div class="good"><strong>Dashboard auto-refreshes every 10 seconds.</strong> Configuration pages do not auto-refresh so typed settings are not lost.</div><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
+{first_run_html}<h2>Dashboard</h2><div class="good"><strong>Dashboard page auto-refreshes every 10 seconds.</strong> In Alert Me mode, PulsePointer refreshes PulsePoint before each configured poll scan. Current monitor poll: {cfg.get('poll_seconds', 5)} seconds. Configuration pages do not auto-refresh so typed settings are not lost.</div><div class="warn">Backup alert only. Not affiliated with PulsePoint Foundation or any public safety agency. Not official dispatch. No warranty. Do not rely on this as your sole alerting method.</div>
 <div class="grid"><div class="card"><h3>Active Monitor Setup</h3>
 <p><strong>Agency:</strong> <code>{html_escape(agency_display(cfg))}</code></p>
 <p><strong>Units:</strong> <code>{html_escape(unit_set_display(cfg))}</code></p>

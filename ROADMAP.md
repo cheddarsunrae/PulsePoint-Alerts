@@ -380,3 +380,10 @@ Dashboard ACK/Silence is disabled when there is no active alert and flashes red 
 Status: implemented.
 
 Pushover emergency receipt IDs are stored with alert history. Desktop ACK cancels Pushover emergency retries. Pushover phone acknowledgement is detected by polling receipt status and is mirrored into local alert history.
+
+
+## Alert Me Fresh-Scan Timing
+
+Status: implemented.
+
+Alert Me now refreshes PulsePoint before each poll scan to reduce lag from stale page text. Missing-Active cycles preserve the existing baseline instead of clearing previously seen incident signatures.

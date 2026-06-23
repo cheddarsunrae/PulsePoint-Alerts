@@ -9,7 +9,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 from .alerting import trigger_alert
-from .config import load_config
+from .config import load_config, normalize_alert_profile
 from .keepawake import set_keep_awake
 from .runtime import RuntimeState
 
@@ -49,6 +49,27 @@ def reset_unit_baseline_if_units_changed(
         return last_units_key, baseline_captured, previous_units, previous_signatures, False
 
     return current_key, False, set(), set(), True
+
+
+def effective_refresh_seconds(cfg: dict) -> int:
+    """Return the page-refresh interval used by the monitor.
+
+    Alert Me is latency-sensitive, so it refreshes PulsePoint before every
+    configured poll scan. Track Unit(s) can use the slower configured refresh
+    interval to reduce churn.
+    """
+    poll_seconds = max(5, int(cfg.get("poll_seconds", 5)))
+    configured_refresh = max(5, int(cfg.get("refresh_seconds", 300)))
+
+    if normalize_alert_profile(cfg.get("alert_profile")) == "alert_me":
+        return poll_seconds
+
+    return configured_refresh
+
+
+def should_refresh_before_scan(now: float, last_refresh: float, refresh_seconds: int) -> bool:
+    """Return whether the page should be refreshed before extracting Active text."""
+    return last_refresh <= 0 or now - last_refresh >= max(5, int(refresh_seconds))
 
 
 def page_hash(text: str) -> str:
@@ -248,6 +269,9 @@ def monitor_loop(state: RuntimeState) -> None:
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(5000)
+            last_refresh = time.time()
+            state.mark_refresh()
+            state.log("Initial PulsePoint page loaded.")
 
             while not state.monitor_stop.is_set():
                 try:
@@ -280,9 +304,11 @@ def monitor_loop(state: RuntimeState) -> None:
 
                     poll_seconds = max(5, int(cfg["poll_seconds"]))
                     cooldown_seconds = int(cfg.get("cooldown_seconds", 60))
-                    refresh_seconds = int(cfg.get("refresh_seconds", 300))
+                    refresh_seconds = effective_refresh_seconds(cfg)
                     test_mode = bool(cfg.get("test_mode", False))
                     unit_re = build_unit_regex(units)
+                    now = time.time()
+                    cycle_refreshed = False
 
                     if state.consume_manual_refresh():
                         state.log("Manual PulsePoint refresh requested.")
@@ -290,11 +316,20 @@ def monitor_loop(state: RuntimeState) -> None:
                         page.wait_for_timeout(5000)
                         state.mark_refresh()
                         last_refresh = time.time()
+                        cycle_refreshed = True
+                    elif should_refresh_before_scan(now, last_refresh, refresh_seconds):
+                        page.reload(wait_until="domcontentloaded", timeout=60000)
+                        page.wait_for_timeout(5000)
+                        state.mark_refresh()
+                        last_refresh = time.time()
+                        cycle_refreshed = True
+                        state.log("PulsePoint page refreshed before scan.")
 
                     text = page.locator("body").inner_text(timeout=10000)
                     state.mark_check()
                     upper_text = text.upper()
                     now = time.time()
+                    page_age_seconds = int(max(0, now - last_refresh))
 
                     if test_mode:
                         state.mark_success(None)
@@ -317,13 +352,20 @@ def monitor_loop(state: RuntimeState) -> None:
                         if active_text is None:
                             state.log(
                                 "Active section not found; skipping unit scan this cycle "
-                                "to avoid matching Recent/closed incidents."
+                                "to avoid matching Recent/closed incidents. Existing baseline preserved."
                             )
                             active_missing_snapshot_saved = maybe_record_active_missing_snapshot(
                                 state,
                                 text,
                                 active_missing_snapshot_saved,
                             )
+                            state.log(
+                                f"Checked. Mode=UNIT; Active=missing; "
+                                f"Units present={', '.join(sorted(previously_present_units)) if previously_present_units else 'none'}; "
+                                f"refreshed={'yes' if cycle_refreshed else 'no'}; page_age={page_age_seconds}s"
+                            )
+                            time.sleep(poll_seconds)
+                            continue
                         else:
                             active_missing_snapshot_saved = False
                             active_signatures, found_units = active_unit_incident_signatures(active_text, unit_re)
@@ -387,15 +429,9 @@ def monitor_loop(state: RuntimeState) -> None:
 
                     state.log(
                         f"Checked. Mode={'TEST' if test_mode else 'UNIT'}; "
-                        f"Units present={', '.join(sorted(previously_present_units)) if previously_present_units else 'none'}"
+                        f"Units present={', '.join(sorted(previously_present_units)) if previously_present_units else 'none'}; "
+                        f"refreshed={'yes' if cycle_refreshed else 'no'}; page_age={page_age_seconds}s"
                     )
-
-                    if now - last_refresh >= refresh_seconds:
-                        page.reload(wait_until="domcontentloaded", timeout=60000)
-                        page.wait_for_timeout(5000)
-                        state.mark_refresh()
-                        last_refresh = now
-                        state.log("PulsePoint page refreshed.")
 
                     time.sleep(poll_seconds)
 

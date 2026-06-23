@@ -22,6 +22,7 @@
 
 ### Changed
 
+- Alert Me mode now refreshes PulsePoint before each poll scan to reduce stale-page alert lag; Dashboard copy now distinguishes page refresh from monitor polling.
 - Dashboard ACK/Silence button is disabled when no alert is active and flashes red when an alert is active.
 - Hardened Active-section incident parser to split incidents into blocks.
 - Incident signatures now ignore unit-only lines to reduce duplicate alerts from unit roster/status changes.
@@ -30,6 +31,7 @@
 
 ### Fixed
 
+- Preserved active incident baselines across missing-Active cycles so older active calls do not re-alert after a temporary missing-Active page state.
 - Updated alert-profile tests to mock the receipt-aware Pushover ACK bridge path.
 - Recaptured unit baseline when the monitored unit list changes while running, preventing already-active calls from alerting as new after CSV/watch-list edits.
 - False alerts caused by neighboring non-monitored incidents.
