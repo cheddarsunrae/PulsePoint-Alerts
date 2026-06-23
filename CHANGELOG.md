@@ -30,6 +30,7 @@
 
 ### Fixed
 
+- Updated alert-profile tests to mock the receipt-aware Pushover ACK bridge path.
 - Recaptured unit baseline when the monitored unit list changes while running, preventing already-active calls from alerting as new after CSV/watch-list edits.
 - False alerts caused by neighboring non-monitored incidents.
 - Duplicate-alert risk from unit status-marker changes.

@@ -94,10 +94,14 @@ def test_track_units_uses_low_priority_non_emergency_pushes(monkeypatch):
     state = RuntimeState()
     calls = []
     monkeypatch.setattr(alerting, "load_config", lambda: config_for("track_units"))
+    def fake_pushover_with_receipt(title, message, runtime_state, **kwargs):
+        calls.append(("pushover", title, kwargs))
+        return True, ""
+
     monkeypatch.setattr(
         alerting,
-        "send_pushover",
-        lambda title, message, runtime_state, **kwargs: calls.append(("pushover", title, kwargs)),
+        "send_pushover_with_receipt",
+        fake_pushover_with_receipt,
     )
     monkeypatch.setattr(
         alerting,
