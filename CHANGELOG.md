@@ -31,6 +31,7 @@
 
 ### Fixed
 
+- Ensured Pushover phone acknowledgements force-stop active desktop/laptop alerts and fixed ACK poller stop-event ordering.
 - Preserved active incident baselines across missing-Active cycles so older active calls do not re-alert after a temporary missing-Active page state.
 - Updated alert-profile tests to mock the receipt-aware Pushover ACK bridge path.
 - Recaptured unit baseline when the monitored unit list changes while running, preventing already-active calls from alerting as new after CSV/watch-list edits.

@@ -467,3 +467,8 @@ This ACK bridge is Pushover-specific. ntfy alerts do not currently provide a rel
 Alert Me mode is latency-sensitive. In Alert Me mode, PulsePointer refreshes the PulsePoint page before each configured poll scan so the monitor is not repeatedly scanning stale browser text between slower full-page refreshes. Track Unit(s) may continue to use the configured slower refresh interval to reduce churn.
 
 If the Active section is temporarily unavailable, the app skips that cycle, preserves the existing active-call baseline, and does not scan Recent/closed calls.
+
+
+### Phone ACK and Laptop Silence
+
+For Pushover emergency-priority alerts, acknowledging the alert on the phone is mirrored into local alert history and also force-stops any active desktop/laptop audible alert. Desktop ACK/Silence also cancels further Pushover emergency retries when a receipt is available.

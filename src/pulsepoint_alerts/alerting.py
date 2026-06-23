@@ -189,6 +189,26 @@ def cancel_pushover_receipt(receipt: str, state: RuntimeState) -> bool:
         return False
 
 
+def force_stop_desktop_alert(state: RuntimeState, source: str = "unknown") -> None:
+    """Best-effort stop for any active local desktop/laptop alert."""
+    state.alert_stop.set()
+
+    with state.lock:
+        was_active = state.alert_active
+        state.alert_active = False
+        state.alert_reason = ""
+
+    if os.name == "nt":
+        try:
+            import winsound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+        except Exception as exc:
+            state.log(f"Windows alert sound purge failed during {source} ACK: {exc}")
+
+    if was_active:
+        state.log(f"Desktop/laptop alert silenced by {source} ACK.")
+
+
 def poll_pushover_ack_for_receipt(receipt: str, state: RuntimeState, interval_seconds: int = 5) -> None:
     """Poll Pushover emergency receipt status and mirror phone ACK into local state."""
     interval_seconds = max(5, int(interval_seconds))
@@ -422,6 +442,9 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         pushover_receipt=pushover_receipt,
     )
 
+    if (pushover_receipt and not tracking) or desktop_enabled:
+        state.alert_stop.clear()
+
     if pushover_receipt and not tracking:
         thread = threading.Thread(
             target=poll_pushover_ack_for_receipt,
@@ -431,7 +454,6 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         thread.start()
 
     if desktop_enabled:
-        state.alert_stop.clear()
         thread = threading.Thread(target=play_alert_loop, args=(reason, state), daemon=True)
         thread.start()
     else:
@@ -454,19 +476,8 @@ def silence_alert(
     if ack_source == "desktop":
         receipt = state.latest_pending_pushover_receipt()
 
-    state.alert_stop.set()
     state.acknowledge_latest_alert(source=ack_source, detail=ack_detail, ack_time=ack_time)
-
-    with state.lock:
-        state.alert_active = False
-        state.alert_reason = ""
-
-    if os.name == "nt":
-        try:
-            import winsound
-            winsound.PlaySound(None, winsound.SND_PURGE)
-        except Exception:
-            pass
+    force_stop_desktop_alert(state, source=ack_source)
 
     if receipt:
         cancel_pushover_receipt(receipt, state)
