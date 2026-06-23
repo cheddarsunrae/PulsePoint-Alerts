@@ -373,3 +373,10 @@ When the configured monitored unit list changes while the monitor is running, th
 Status: implemented.
 
 Dashboard ACK/Silence is disabled when there is no active alert and flashes red when an alert is active. Future acknowledgement work will connect Pushover phone acknowledgements to app-side ACK state.
+
+
+## Pushover ACK Bridge
+
+Status: implemented.
+
+Pushover emergency receipt IDs are stored with alert history. Desktop ACK cancels Pushover emergency retries. Pushover phone acknowledgement is detected by polling receipt status and is mirrored into local alert history.

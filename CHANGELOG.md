@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added Pushover emergency receipt storage, desktop ACK retry cancellation, and phone-side Pushover ACK mirroring into local alert history.
 - Documentation now identifies Pushover as the recommended provider for the full wake-up and future phone-acknowledgement workflow while preserving ntfy as the free/default path.
 - Public PDF user guide for PulsePointer Alerter under `docs/`.
 - Troubleshooting view for recent local debug snapshots.

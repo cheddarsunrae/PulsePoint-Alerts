@@ -655,11 +655,14 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
                 f"<td>{html_escape(event.get('phone', ''))}</td>"
                 f"<td><span class='{ack_class}'>{html_escape(ack)}</span></td>"
                 f"<td>{html_escape(event.get('ack_time', ''))}</td>"
+                f"<td>{html_escape(event.get('ack_source', ''))}</td>"
+                f"<td>{html_escape(event.get('ack_detail', ''))}</td>"
+                f"<td>{html_escape('yes' if event.get('pushover_receipt', '') else '')}</td>"
                 "</tr>"
             )
 
         if not rows:
-            rows = '<tr><td colspan="9"><em>No alert history yet.</em></td></tr>'
+            rows = '<tr><td colspan="12"><em>No alert history yet.</em></td></tr>'
 
         content = f"""
 <h2>Alert History</h2>
@@ -679,6 +682,9 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
 <th>Phone</th>
 <th>Acknowledged</th>
 <th>ACK Time</th>
+<th>ACK Source</th>
+<th>ACK Detail</th>
+<th>Pushover Receipt</th>
 </tr>
 {rows}
 </table>
@@ -761,7 +767,7 @@ This wizard configures the minimum needed to start monitoring. You can fine-tune
     def export_history_csv() -> Response:
         events = state.alert_history(500)
         output = io.StringIO()
-        fieldnames = ["time", "source", "profile", "evidence_id", "reason", "desktop", "phone", "ack_required", "acknowledged", "ack_time"]
+        fieldnames = ["time", "source", "profile", "evidence_id", "reason", "desktop", "phone", "ack_required", "acknowledged", "ack_time", "ack_source", "ack_detail", "pushover_receipt", "pushover_acknowledged"]
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
 

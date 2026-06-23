@@ -453,3 +453,10 @@ If the monitored unit list is changed while the monitor is running, PulsePointer
 ## ACK/Silence Button States
 
 The Dashboard ACK/Silence control is disabled and grey when no alert is active. When an alert is active, the button becomes enabled and flashes red to draw attention.
+
+
+## Pushover Cross-Device Acknowledgement
+
+When Pushover emergency-priority alerts return a receipt, PulsePointer Alerter stores that receipt with the alert history record. Desktop ACK/Silence cancels further Pushover emergency retries for that receipt. If the notification is acknowledged in Pushover, the app polls the receipt status and mirrors that phone acknowledgement into local alert history while silencing the laptop alert.
+
+This ACK bridge is Pushover-specific. ntfy alerts do not currently provide a reliable local acknowledgement signal back to the app.

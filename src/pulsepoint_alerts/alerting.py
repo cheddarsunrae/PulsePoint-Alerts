@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import threading
@@ -43,19 +44,17 @@ def _play_sound_once(sound_file: str, state: RuntimeState) -> None:
     state.log("No supported audio player found for this platform.")
 
 
-def send_pushover(
+def _pushover_payload(
     title: str,
     message: str,
-    state: RuntimeState,
     emergency: bool = True,
     priority_override: int | None = None,
-) -> bool:
+) -> tuple[dict[str, Any] | None, int]:
     cfg = load_config()
     token = cfg.get("pushover_app_token", "").strip()
     user = cfg.get("pushover_user_key", "").strip()
     if not token or not user:
-        state.log("Pushover skipped: missing app token or user key.")
-        return False
+        return None, 0
 
     priority = (
         int(priority_override)
@@ -79,19 +78,150 @@ def send_pushover(
         payload["retry"] = str(retry)
         payload["expire"] = str(expire)
 
+    return payload, priority
+
+
+def send_pushover_with_receipt(
+    title: str,
+    message: str,
+    state: RuntimeState,
+    emergency: bool = True,
+    priority_override: int | None = None,
+) -> tuple[bool, str]:
+    payload, priority = _pushover_payload(title, message, emergency, priority_override)
+    if payload is None:
+        state.log("Pushover skipped: missing app token or user key.")
+        return False, ""
+
     try:
         data = urllib.parse.urlencode(payload).encode("utf-8")
         req = urllib.request.Request("https://api.pushover.net/1/messages.json", data=data, method="POST")
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = resp.read().decode("utf-8", errors="replace")
-            if resp.status == 200:
-                state.log("Phone push sent via Pushover.")
-                return True
+            try:
+                parsed = json.loads(body)
+            except json.JSONDecodeError:
+                parsed = {}
+
+            if resp.status == 200 and int(parsed.get("status", 0)) == 1:
+                receipt = str(parsed.get("receipt", "") or "")
+                if receipt:
+                    state.log(f"Phone push sent via Pushover. Emergency receipt stored: {receipt}")
+                else:
+                    if priority == 2:
+                        state.log("Phone push sent via Pushover, but no emergency receipt was returned.")
+                    else:
+                        state.log("Phone push sent via Pushover.")
+                return True, receipt
+
             state.log(f"Pushover returned HTTP {resp.status}: {body}")
-            return False
+            return False, ""
     except Exception as exc:
         state.log(f"Pushover send error: {exc}")
+        return False, ""
+
+
+def send_pushover(
+    title: str,
+    message: str,
+    state: RuntimeState,
+    emergency: bool = True,
+    priority_override: int | None = None,
+) -> bool:
+    sent, _receipt = send_pushover_with_receipt(
+        title,
+        message,
+        state,
+        emergency=emergency,
+        priority_override=priority_override,
+    )
+    return sent
+
+
+def pushover_receipt_status(receipt: str, state: RuntimeState) -> dict[str, Any] | None:
+    cfg = load_config()
+    token = cfg.get("pushover_app_token", "").strip()
+    if not token:
+        state.log("Pushover receipt check skipped: missing app token.")
+        return None
+
+    url = f"https://api.pushover.net/1/receipts/{urllib.parse.quote(receipt)}.json?token={urllib.parse.quote(token)}"
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            parsed = json.loads(body)
+            if resp.status == 200 and int(parsed.get("status", 0)) == 1:
+                return parsed
+            state.log(f"Pushover receipt check returned HTTP {resp.status}: {body}")
+            return None
+    except Exception as exc:
+        state.log(f"Pushover receipt check error: {exc}")
+        return None
+
+
+def cancel_pushover_receipt(receipt: str, state: RuntimeState) -> bool:
+    cfg = load_config()
+    token = cfg.get("pushover_app_token", "").strip()
+    if not token:
+        state.log("Pushover cancel skipped: missing app token.")
         return False
+
+    try:
+        data = urllib.parse.urlencode({"token": token}).encode("utf-8")
+        url = f"https://api.pushover.net/1/receipts/{urllib.parse.quote(receipt)}/cancel.json"
+        req = urllib.request.Request(url, data=data, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            try:
+                parsed = json.loads(body)
+            except json.JSONDecodeError:
+                parsed = {}
+
+            if resp.status == 200 and int(parsed.get("status", 0)) == 1:
+                state.log(f"Pushover emergency retries canceled for receipt: {receipt}")
+                return True
+
+            state.log(f"Pushover cancel returned HTTP {resp.status}: {body}")
+            return False
+    except Exception as exc:
+        state.log(f"Pushover cancel error: {exc}")
+        return False
+
+
+def poll_pushover_ack_for_receipt(receipt: str, state: RuntimeState, interval_seconds: int = 5) -> None:
+    """Poll Pushover emergency receipt status and mirror phone ACK into local state."""
+    interval_seconds = max(5, int(interval_seconds))
+    state.log(f"Started Pushover ACK polling for receipt: {receipt}")
+
+    while not state.alert_stop.wait(interval_seconds):
+        status = pushover_receipt_status(receipt, state)
+        if not status:
+            continue
+
+        if int(status.get("acknowledged", 0)) == 1:
+            acknowledged_at_raw = int(status.get("acknowledged_at", 0) or 0)
+            ack_time = (
+                datetime.fromtimestamp(acknowledged_at_raw).strftime("%Y-%m-%d %H:%M:%S")
+                if acknowledged_at_raw
+                else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+            ack_by_device = str(status.get("acknowledged_by_device", "") or "")
+            ack_by_user = str(status.get("acknowledged_by", "") or "")
+            detail_parts = []
+            if ack_by_device:
+                detail_parts.append(f"device={ack_by_device}")
+            if ack_by_user:
+                detail_parts.append(f"user={ack_by_user}")
+            detail = ", ".join(detail_parts)
+
+            state.log(f"Pushover phone ACK received for receipt {receipt}. {detail}".strip())
+            silence_alert(state, ack_source="pushover", ack_detail=detail, ack_time=ack_time)
+            return
+
+        if int(status.get("expired", 0)) == 1:
+            state.log(f"Pushover emergency receipt expired without ACK: {receipt}")
+            return
 
 
 def send_ntfy(
@@ -143,25 +273,30 @@ def phone_push_reason(reason: str, cfg: dict[str, Any]) -> str:
     return reason
 
 
-def send_phone_push_for_alert(reason: str, state: RuntimeState, profile: str = "alert_me") -> None:
+def send_phone_push_for_alert(reason: str, state: RuntimeState, profile: str = "alert_me") -> str:
     cfg = load_config()
     profile = normalize_alert_profile(profile)
     provider = cfg.get("push_provider", "pushover")
     if provider == "none":
         state.log("Phone push skipped: provider set to none.")
-        return
+        return ""
+
     tracking = profile == "track_units"
     title = "PulsePoint Unit Tracking Update" if tracking else "PulsePoint Unit Alert"
     phone_reason = phone_push_reason(reason, cfg)
     message = f"{phone_reason}\n\nPulsePoint Alert Monitor triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}."
+    pushover_receipt = ""
+
     if provider in ("pushover", "both"):
-        send_pushover(
+        _sent, receipt = send_pushover_with_receipt(
             title,
             message,
             state,
             emergency=not tracking,
             priority_override=-1 if tracking else None,
         )
+        pushover_receipt = receipt
+
     if provider in ("ntfy", "both"):
         send_ntfy(
             title,
@@ -170,6 +305,8 @@ def send_phone_push_for_alert(reason: str, state: RuntimeState, profile: str = "
             priority_override=2 if tracking else None,
             allow_call=not tracking,
         )
+
+    return pushover_receipt
 
 
 def play_alert_loop(reason: str, state: RuntimeState) -> None:
@@ -267,6 +404,13 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         evidence_payload = dict(evidence)
         evidence_payload["alert_profile"] = profile
     evidence_id = state.record_alert_evidence(evidence_payload) if evidence_payload is not None else ""
+
+    pushover_receipt = ""
+    if phone_enabled:
+        pushover_receipt = send_phone_push_for_alert(reason, state, profile=profile)
+    else:
+        state.log("Phone push skipped: phone alert channel disabled.")
+
     state.record_alert(
         reason,
         desktop_enabled=desktop_enabled,
@@ -275,12 +419,16 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         evidence_id=evidence_id,
         profile=profile,
         ack_required=not tracking,
+        pushover_receipt=pushover_receipt,
     )
 
-    if phone_enabled:
-        send_phone_push_for_alert(reason, state, profile=profile)
-    else:
-        state.log("Phone push skipped: phone alert channel disabled.")
+    if pushover_receipt and not tracking:
+        thread = threading.Thread(
+            target=poll_pushover_ack_for_receipt,
+            args=(pushover_receipt, state),
+            daemon=True,
+        )
+        thread.start()
 
     if desktop_enabled:
         state.alert_stop.clear()
@@ -296,15 +444,29 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         state.log(f"Alert recorded but all alert channels are disabled: {reason}")
 
 
-def silence_alert(state: RuntimeState) -> None:
+def silence_alert(
+    state: RuntimeState,
+    ack_source: str = "desktop",
+    ack_detail: str = "",
+    ack_time: str | None = None,
+) -> None:
+    receipt = ""
+    if ack_source == "desktop":
+        receipt = state.latest_pending_pushover_receipt()
+
     state.alert_stop.set()
-    state.acknowledge_latest_alert()
+    state.acknowledge_latest_alert(source=ack_source, detail=ack_detail, ack_time=ack_time)
+
     with state.lock:
         state.alert_active = False
         state.alert_reason = ""
+
     if os.name == "nt":
         try:
             import winsound
             winsound.PlaySound(None, winsound.SND_PURGE)
         except Exception:
             pass
+
+    if receipt:
+        cancel_pushover_receipt(receipt, state)

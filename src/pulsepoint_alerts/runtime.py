@@ -241,6 +241,7 @@ class RuntimeState:
         evidence_id: str = "",
         profile: str = "alert_me",
         ack_required: bool = True,
+        pushover_receipt: str = "",
     ) -> None:
         event = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -252,6 +253,10 @@ class RuntimeState:
             "ack_required": "yes" if ack_required else "no",
             "acknowledged": "no" if ack_required else "not_required",
             "ack_time": "",
+            "ack_source": "",
+            "ack_detail": "",
+            "pushover_receipt": pushover_receipt,
+            "pushover_acknowledged": "",
             "evidence_id": evidence_id,
         }
         with self.lock:
@@ -261,8 +266,13 @@ class RuntimeState:
 
         self._write_alert_history(snapshot)
 
-    def acknowledge_latest_alert(self) -> None:
-        ack_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def acknowledge_latest_alert(
+        self,
+        source: str = "desktop",
+        detail: str = "",
+        ack_time: str | None = None,
+    ) -> None:
+        ack_time = ack_time or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         changed = False
 
         with self.lock:
@@ -270,12 +280,24 @@ class RuntimeState:
                 if event.get("acknowledged") == "no":
                     event["acknowledged"] = "yes"
                     event["ack_time"] = ack_time
+                    event["ack_source"] = source
+                    event["ack_detail"] = detail
+                    if source == "pushover":
+                        event["pushover_acknowledged"] = "yes"
                     changed = True
                     break
             snapshot = list(self.alert_events)
 
         if changed:
             self._write_alert_history(snapshot)
+
+    def latest_pending_pushover_receipt(self) -> str:
+        """Return the newest unacknowledged alert's Pushover receipt, if any."""
+        with self.lock:
+            for event in reversed(self.alert_events):
+                if event.get("acknowledged") == "no":
+                    return str(event.get("pushover_receipt", "") or "")
+        return ""
 
     def alert_history(self, limit: int = 100) -> list[dict[str, str]]:
         with self.lock:
