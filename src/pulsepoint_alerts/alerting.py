@@ -214,7 +214,7 @@ def poll_pushover_ack_for_receipt(receipt: str, state: RuntimeState, interval_se
     interval_seconds = max(5, int(interval_seconds))
     state.log(f"Started Pushover ACK polling for receipt: {receipt}")
 
-    while not state.alert_stop.wait(interval_seconds):
+    while not state.pushover_ack_stop.wait(interval_seconds):
         status = pushover_receipt_status(receipt, state)
         if not status:
             continue
@@ -425,6 +425,13 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         evidence_payload["alert_profile"] = profile
     evidence_id = state.record_alert_evidence(evidence_payload) if evidence_payload is not None else ""
 
+    # Clear both alert stop channels before launching a new alert cycle.
+    # alert_stop controls the local sound loop.
+    # pushover_ack_stop controls the Pushover receipt polling loop.
+    if phone_enabled or desktop_enabled:
+        state.alert_stop.clear()
+        state.pushover_ack_stop.clear()
+
     pushover_receipt = ""
     if phone_enabled:
         pushover_receipt = send_phone_push_for_alert(reason, state, profile=profile)
@@ -441,9 +448,6 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
         ack_required=not tracking,
         pushover_receipt=pushover_receipt,
     )
-
-    if (pushover_receipt and not tracking) or desktop_enabled:
-        state.alert_stop.clear()
 
     if pushover_receipt and not tracking:
         thread = threading.Thread(
@@ -465,7 +469,6 @@ def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | N
     if not desktop_enabled and not phone_enabled:
         state.log(f"Alert recorded but all alert channels are disabled: {reason}")
 
-
 def silence_alert(
     state: RuntimeState,
     ack_source: str = "desktop",
@@ -477,6 +480,7 @@ def silence_alert(
         receipt = state.latest_pending_pushover_receipt()
 
     state.acknowledge_latest_alert(source=ack_source, detail=ack_detail, ack_time=ack_time)
+    state.pushover_ack_stop.set()
     force_stop_desktop_alert(state, source=ack_source)
 
     if receipt:

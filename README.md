@@ -472,3 +472,8 @@ If the Active section is temporarily unavailable, the app skips that cycle, pres
 ### Phone ACK and Laptop Silence
 
 For Pushover emergency-priority alerts, acknowledging the alert on the phone is mirrored into local alert history and also force-stops any active desktop/laptop audible alert. Desktop ACK/Silence also cancels further Pushover emergency retries when a receipt is available.
+
+
+### ACK State Isolation
+
+Pushover ACK polling uses separate state from the desktop alert sound loop. This prevents a stale desktop ACK stop event from blocking Pushover receipt polling or follow-up Alert Me alerts.

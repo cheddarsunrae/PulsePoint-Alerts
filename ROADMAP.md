@@ -387,3 +387,10 @@ Pushover emergency receipt IDs are stored with alert history. Desktop ACK cancel
 Status: implemented.
 
 Alert Me now refreshes PulsePoint before each poll scan to reduce lag from stale page text. Missing-Active cycles preserve the existing baseline instead of clearing previously seen incident signatures.
+
+
+## ACK State Isolation
+
+Status: implemented.
+
+Desktop alert stopping and Pushover receipt polling now use separate stop events so follow-up alerts remain reliable after phone-side or desktop-side acknowledgement.

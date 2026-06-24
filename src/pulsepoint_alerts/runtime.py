@@ -21,6 +21,7 @@ class RuntimeState:
     lock: threading.Lock = field(default_factory=threading.Lock)
     monitor_stop: threading.Event = field(default_factory=threading.Event)
     alert_stop: threading.Event = field(default_factory=threading.Event)
+    pushover_ack_stop: threading.Event = field(default_factory=threading.Event)
     monitor_running: bool = False
     alert_active: bool = False
     alert_reason: str = ""

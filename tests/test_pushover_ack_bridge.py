@@ -156,6 +156,7 @@ def test_phone_ack_silences_active_desktop_alert(tmp_path, monkeypatch):
         assert state.alert_reason == ""
 
     assert state.alert_stop.is_set() is True
+    assert state.pushover_ack_stop.is_set() is True
 
     event = state.alert_history(1)[0]
     assert event["acknowledged"] == "yes"
@@ -193,4 +194,45 @@ def test_trigger_alert_clears_stop_event_before_starting_pushover_poller(tmp_pat
     alerting.trigger_alert("test alert", state)
 
     assert state.alert_stop.is_set() is False
+    assert state.pushover_ack_stop.is_set() is False
     assert "poll_pushover_ack_for_receipt" in started_targets
+
+
+def test_pushover_ack_poller_uses_separate_stop_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("PULSEPOINT_ALERT_DIR", str(tmp_path))
+    state = RuntimeState()
+
+    # Prior desktop ACK may leave desktop alert_stop set.
+    # The Pushover poller must use pushover_ack_stop instead.
+    state.alert_stop.set()
+    state.pushover_ack_stop.clear()
+
+    calls = {"count": 0}
+
+    def fake_status(receipt, runtime_state):
+        calls["count"] += 1
+        return {
+            "status": 1,
+            "acknowledged": 1,
+            "acknowledged_at": 0,
+            "acknowledged_by_device": "phone",
+        }
+
+    monkeypatch.setattr(alerting, "pushover_receipt_status", fake_status)
+
+    state.record_alert(
+        "test alert",
+        desktop_enabled=True,
+        phone_enabled=True,
+        source="monitor",
+        profile="alert_me",
+        ack_required=True,
+        pushover_receipt="receipt123",
+    )
+
+    alerting.poll_pushover_ack_for_receipt("receipt123", state, interval_seconds=0)
+
+    assert calls["count"] == 1
+    event = state.alert_history(1)[0]
+    assert event["acknowledged"] == "yes"
+    assert event["ack_source"] == "pushover"
