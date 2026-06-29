@@ -1,3 +1,15 @@
+"""Alert delivery, acknowledgement, and silence handling.
+
+This module is intentionally conservative because it controls the loud desktop
+alarm and phone push workflow. The important safety rule is that an alert should
+only be silenced by an explicit acknowledgement path, a configured duration
+limit, or a deliberate test/simulated alert path.
+
+Real monitor alerts and test alerts should remain logically separate. Test
+alerts are useful for setup validation, but they must not contaminate real-call
+cooldown, parser baseline, or missed-alert forensic state.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -88,6 +100,12 @@ def send_pushover_with_receipt(
     emergency: bool = True,
     priority_override: int | None = None,
 ) -> tuple[bool, str]:
+    """Send a Pushover notification and return its emergency receipt if available.
+
+    Pushover emergency notifications return a receipt that can be polled for remote
+    acknowledgement. The caller uses that receipt to bridge phone ACKs back to the
+    desktop/laptop alert loop.
+    """
     payload, priority = _pushover_payload(title, message, emergency, priority_override)
     if payload is None:
         state.log("Pushover skipped: missing app token or user key.")
@@ -128,6 +146,12 @@ def send_pushover(
     emergency: bool = True,
     priority_override: int | None = None,
 ) -> bool:
+    """Send a standard Pushover notification.
+
+    This is the simple, non-receipt path. Emergency-priority acknowledgement support
+    uses the receipt-aware wrapper so the app can poll Pushover and silence the
+    desktop alert when the phone acknowledgement arrives.
+    """
     sent, _receipt = send_pushover_with_receipt(
         title,
         message,
@@ -139,6 +163,12 @@ def send_pushover(
 
 
 def pushover_receipt_status(receipt: str, state: RuntimeState) -> dict[str, Any] | None:
+    """Fetch acknowledgement status for a Pushover emergency receipt.
+
+    Pushover asks clients not to poll receipts faster than every few seconds. Callers
+    should keep polling lightweight and stop as soon as the alert is acknowledged or
+    no longer pending.
+    """
     cfg = load_config()
     token = cfg.get("pushover_app_token", "").strip()
     if not token:
@@ -161,6 +191,11 @@ def pushover_receipt_status(receipt: str, state: RuntimeState) -> dict[str, Any]
 
 
 def cancel_pushover_receipt(receipt: str, state: RuntimeState) -> bool:
+    """Cancel a pending Pushover emergency receipt after local acknowledgement.
+
+    When the user clicks ACK on the desktop, the phone should stop retrying. This
+    helper tells Pushover that the emergency notification no longer needs to repeat.
+    """
     cfg = load_config()
     token = cfg.get("pushover_app_token", "").strip()
     if not token:
@@ -294,6 +329,12 @@ def phone_push_reason(reason: str, cfg: dict[str, Any]) -> str:
 
 
 def send_phone_push_for_alert(reason: str, state: RuntimeState, profile: str = "alert_me") -> str:
+    """Send the configured phone push notification for an alert.
+
+    The alert profile determines whether the push is quiet tracking telemetry or a
+    full wake-up notification. Alert Me can use emergency Pushover receipts for
+    cross-device ACK; Track Unit(s) should remain low-noise.
+    """
     cfg = load_config()
     profile = normalize_alert_profile(profile)
     provider = cfg.get("push_provider", "pushover")
@@ -330,6 +371,12 @@ def send_phone_push_for_alert(reason: str, state: RuntimeState, profile: str = "
 
 
 def play_alert_loop(reason: str, state: RuntimeState) -> None:
+    """Run the desktop/laptop audible alert until stopped or timed out.
+
+    The loop watches state.alert_stop so desktop ACK, phone ACK, or configured alert
+    duration can stop the alarm. Windows uses asynchronous looping playback; other
+    platforms use a best-effort repeated playback approach.
+    """
     cfg = load_config()
     sound_file = cfg["sound_file"]
     alert_mode = cfg.get("alert_mode", "until_ack")
@@ -396,12 +443,22 @@ def trigger_desktop_alert(reason: str, state: RuntimeState) -> None:
         profile=profile,
         ack_required=True,
     )
+    # Clear the stop event before starting a new desktop alert loop. Remote ACK paths set this event to stop playback.
     state.alert_stop.clear()
     thread = threading.Thread(target=play_alert_loop, args=(reason, state), daemon=True)
     thread.start()
 
 
 def trigger_alert(reason: str, state: RuntimeState, evidence: dict[str, Any] | None = None) -> None:
+    """Start the alert workflow for a newly detected monitored incident.
+
+    This function is the handoff from monitor decision logic to notification
+    delivery. It records local history/evidence, sends phone push if enabled, and
+    starts the desktop alert loop if the active profile requires it.
+
+    The is_test flag must remain isolated from real monitor alerts so setup tests do
+    not affect real-call cooldown or missed-alert analysis.
+    """
     cfg = load_config()
     profile = normalize_alert_profile(cfg.get("alert_profile"))
     tracking = profile == "track_units"
@@ -475,6 +532,12 @@ def silence_alert(
     ack_detail: str = "",
     ack_time: str | None = None,
 ) -> None:
+    """Acknowledge and silence the most recent pending alert.
+
+    The ack_source identifies whether the ACK came from the desktop UI, Pushover, or
+    another future channel. Desktop ACKs also cancel pending Pushover emergency
+    retries when a receipt is available.
+    """
     receipt = ""
     if ack_source == "desktop":
         receipt = state.latest_pending_pushover_receipt()

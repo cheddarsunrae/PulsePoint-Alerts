@@ -1,3 +1,11 @@
+"""Flask web interface for PulsePointer Alerter.
+
+The web app provides setup, configuration, dashboard status, manual tests,
+alert history, troubleshooting views, and monitor controls. It should present
+runtime state clearly without hiding safety-relevant details such as stale
+polls, Active-section parse failures, skipped-alert decisions, or pending ACKs.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations

@@ -1,3 +1,15 @@
+"""Runtime state and local persistence helpers.
+
+The app keeps transient process state in RuntimeState and writes important
+forensic artifacts to the local app data folder. Alert history, evidence
+snapshots, debug snapshots, and monitor decisions are deliberately local so a
+missed or unexpected alert can be investigated after the fact.
+
+RuntimeState is shared across Flask request handlers, the monitor thread, alert
+threads, and Pushover acknowledgement polling. Any mutation that affects alert
+state should use the state's lock.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -244,6 +256,11 @@ class RuntimeState:
         ack_required: bool = True,
         pushover_receipt: str = "",
     ) -> None:
+        """Persist an alert-history event for dashboard review and CSV export.
+
+        History is the durable record that an alert workflow occurred. Evidence
+        snapshots provide the deeper parser context when available.
+        """
         event = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "reason": reason,
@@ -273,6 +290,11 @@ class RuntimeState:
         detail: str = "",
         ack_time: str | None = None,
     ) -> None:
+        """Mark the newest unacknowledged alert as acknowledged.
+
+        ACK metadata is retained so the UI and exported history can distinguish desktop
+        ACK, phone ACK, and future acknowledgement channels.
+        """
         ack_time = ack_time or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         changed = False
 

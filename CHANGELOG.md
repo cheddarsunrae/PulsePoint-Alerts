@@ -1,3 +1,5 @@
+- Added in-code documentation for the alert pipeline, monitor loop, parser safety rules, runtime state, and configuration helpers.
+
 # Changelog
 
 ## 0.2.0-alpha.1 - 2026-06-19

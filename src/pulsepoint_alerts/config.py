@@ -1,3 +1,11 @@
+"""Configuration defaults and app-data paths.
+
+Configuration is stored locally so the desktop monitor can run without a cloud
+account. Defaults should be safe for first-run users: conservative polling,
+explicit unit selection, test-mode support, and push settings that do nothing
+until the user supplies provider credentials.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -55,6 +63,7 @@ def alert_profile_label(value: object) -> str:
 
 
 def app_dir() -> Path:
+    """Return the local app-data directory used for config and forensic files."""
     override = os.environ.get("PULSEPOINT_ALERT_DIR")
     if override:
         return Path(override)
@@ -85,6 +94,7 @@ def ensure_config() -> None:
 
 
 def load_config() -> dict[str, Any]:
+    """Load user configuration, merging missing keys from safe defaults."""
     ensure_config()
     with config_path().open("r", encoding="utf-8") as f:
         cfg = json.load(f)
@@ -102,6 +112,7 @@ def load_config() -> dict[str, Any]:
 
 
 def save_config(cfg: dict[str, Any]) -> None:
+    """Persist user configuration to the local app-data folder."""
     app_dir().mkdir(parents=True, exist_ok=True)
     with config_path().open("w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)

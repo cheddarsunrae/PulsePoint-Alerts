@@ -1,3 +1,16 @@
+"""PulsePoint polling loop and alert-decision engine.
+
+The monitor loop fetches the PulsePoint page, extracts the Active incident
+section, compares active incidents against the configured monitored units, and
+triggers alerts only for newly observed matching incidents.
+
+This file should avoid clever parser changes. False positives and false
+negatives both matter: a noisy app trains users to ignore it, while a missed
+alert defeats the purpose of the tool. Any parser/decision change should include
+regression tests for baseline behavior, unit roster changes, status marker
+changes, Active-vs-Recent separation, and cooldown behavior.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 
 from __future__ import annotations
@@ -230,6 +243,12 @@ def maybe_record_active_missing_snapshot(
     return True
 
 def monitor_loop(state: RuntimeState) -> None:
+    """Continuously poll PulsePoint and evaluate whether a new alert is required.
+
+    Each cycle should record enough decision detail to explain why an alert was
+    triggered or skipped. Parser failures should fail closed for that cycle rather
+    than falling back to broad page matching.
+    """
     cfg = load_config()
     agency_ids = cfg["agency_ids"].strip()
     units = cfg["units"]

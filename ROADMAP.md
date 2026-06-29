@@ -394,3 +394,5 @@ Alert Me now refreshes PulsePoint before each poll scan to reduce lag from stale
 Status: implemented.
 
 Desktop alert stopping and Pushover receipt polling now use separate stop events so follow-up alerts remain reliable after phone-side or desktop-side acknowledgement.
+
+- Continue expanding developer-facing comments around parser edge cases, packaging, and mobile/cloud relay architecture.

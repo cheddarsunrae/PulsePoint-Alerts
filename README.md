@@ -477,3 +477,7 @@ For Pushover emergency-priority alerts, acknowledging the alert on the phone is 
 ### ACK State Isolation
 
 Pushover ACK polling uses separate state from the desktop alert sound loop. This prevents a stale desktop ACK stop event from blocking Pushover receipt polling or follow-up Alert Me alerts.
+
+### Code documentation
+
+Core source files include module docstrings and function-level comments for the alert pipeline, monitor decision logic, parser safety rules, acknowledgement flow, and local runtime persistence. Safety-sensitive comments are intended to explain why the code behaves conservatively, especially around Active-vs-Recent separation, baseline handling, test alert isolation, and cross-device ACK behavior.
