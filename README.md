@@ -481,3 +481,7 @@ Pushover ACK polling uses separate state from the desktop alert sound loop. This
 ### Code documentation
 
 Core source files include module docstrings and function-level comments for the alert pipeline, monitor decision logic, parser safety rules, acknowledgement flow, and local runtime persistence. Safety-sensitive comments are intended to explain why the code behaves conservatively, especially around Active-vs-Recent separation, baseline handling, test alert isolation, and cross-device ACK behavior.
+
+### Active incident boundary handling
+
+PulsePointer Alerter treats both same-day time lines, such as `9:23 AM`, and relative time lines, such as `Yesterday 5:09 PM`, as Active incident boundaries. This prevents long-running incidents from being merged into neighboring monitored-unit calls when the Active list changes size.

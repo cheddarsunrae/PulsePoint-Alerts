@@ -2,6 +2,8 @@
 
 # Changelog
 
+- Fixed Active incident splitting for `Yesterday 5:09 PM` style time lines so long-running incidents do not merge into neighboring monitored-unit calls.
+
 ## 0.2.0-alpha.1 - 2026-06-19
 
 ### Added
@@ -41,4 +43,3 @@
 - False alerts caused by neighboring non-monitored incidents.
 - Duplicate-alert risk from unit status-marker changes.
 - Lock-safe duplicate start/alert paths to avoid non-reentrant lock deadlocks.
-

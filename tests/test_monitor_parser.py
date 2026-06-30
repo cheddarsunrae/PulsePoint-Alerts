@@ -270,3 +270,124 @@ M11
 
     assert signatures == {}
     assert units == set()
+
+
+def test_split_active_incident_blocks_handles_yesterday_time_boundary():
+    active = """
+(3)
+
+Medical Emergency
+9:43 AM
+OLD HIGHWAY 80, PINE VALLEY, CA
+E44
+E49
+M25
+
+Medical Emergency
+9:23 AM
+ADDRESS NOT AVAILABLE
+M231
+PT30
+
+Vegetation Fire
+Yesterday 5:09 PM
+1 POST
+2 ALARM
+25575 HWY 79, SANTA YSABEL, CA
+9CU
+AA330
+AD3309
+AT71
+"""
+
+    blocks = split_active_incident_blocks(active)
+
+    assert len(blocks) == 3
+    assert "M231" in blocks[1]
+    assert "Vegetation Fire" not in blocks[1]
+    assert "Yesterday 5:09 PM" in blocks[2]
+
+
+def test_yesterday_neighbor_does_not_create_duplicate_monitored_signature():
+    before = """
+(5)
+
+Medical Emergency
+9:23 AM
+ADDRESS NOT AVAILABLE
+?M231
+?PT30
+
+Medical Emergency
+8:45 AM
+H ST, RAMONA, CA
+E80
+M80
+
+Medical Emergency
+8:19 AM
+JAPATUL VALLEY RD, DESCANSO, CA
+E45
+M44
+
+Medical Emergency
+7:41 AM
+ADDRESS NOT AVAILABLE
+E3395
+PT55
+RA58
+
+Vegetation Fire
+Yesterday 5:09 PM
+1 POST
+2 ALARM
+25575 HWY 79, SANTA YSABEL, CA
+9CU
+AA330
+AD3309
+AT71
+"""
+
+    after = """
+(3)
+
+Medical Emergency
+9:43 AM
+OLD HIGHWAY 80, PINE VALLEY, CA
+E44
+E49
+M25
+
+Medical Emergency
+9:23 AM
+ADDRESS NOT AVAILABLE
+M231
+PT30
+
+Vegetation Fire
+Yesterday 5:09 PM
+1 POST
+2 ALARM
+25575 HWY 79, SANTA YSABEL, CA
+9CU
+AA330
+AD3309
+AT71
+"""
+
+    unit_re = build_unit_regex(["M231"])
+    before_signatures, before_units = active_unit_incident_signatures(before, unit_re)
+    after_signatures, after_units = active_unit_incident_signatures(after, unit_re)
+
+    assert before_units == {"M231"}
+    assert after_units == {"M231"}
+    assert set(after_signatures) == set(before_signatures)
+
+
+def test_normalize_incident_text_removes_yesterday_time_noise():
+    normalized = normalize_incident_text("Vegetation Fire Yesterday 5:09 PM 25575 HWY 79")
+
+    assert "YESTERDAY" not in normalized
+    assert "5:09" not in normalized
+    assert "VEGETATION FIRE" in normalized
+    assert "25575 HWY 79" in normalized

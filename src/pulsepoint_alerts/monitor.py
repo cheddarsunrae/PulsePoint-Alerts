@@ -27,7 +27,10 @@ from .keepawake import set_keep_awake
 from .runtime import RuntimeState
 
 
-INCIDENT_TIME_RE = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$", re.I)
+INCIDENT_TIME_RE = re.compile(
+    r"^(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$",
+    re.I,
+)
 ACTIVE_COUNT_RE = re.compile(r"^\(\d+\)$")
 UNIT_ONLY_RE = re.compile(r"^[\?\^]?\s*[A-Z]{1,6}\d{1,5}$", re.I)
 
@@ -87,7 +90,11 @@ def should_refresh_before_scan(now: float, last_refresh: float, refresh_seconds:
 
 def page_hash(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", text.strip().upper())
-    cleaned = re.sub(r"\b\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b", "", cleaned)
+    cleaned = re.sub(
+        r"\b(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
+        "",
+        cleaned,
+    )
     return hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
 
 
@@ -103,8 +110,19 @@ def active_section_text(text: str) -> str | None:
 
 
 def normalize_incident_text(text: str) -> str:
+    """Normalize incident text into stable signature text.
+
+    Time labels, relative day labels, active-count markers, age labels, and unit
+    status prefixes are removed so the same active incident does not look new
+    just because PulsePoint changes display formatting.
+    """
     cleaned = text.upper()
-    cleaned = re.sub(r"\b\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b", "", cleaned)
+    cleaned = re.sub(
+        r"\b(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(r"\b(TODAY|YESTERDAY)\b", "", cleaned)
     cleaned = re.sub(r"\b\d+\s*(MIN|MINS|MINUTE|MINUTES)\b", "", cleaned)
     cleaned = re.sub(r"\(\d+\)", "", cleaned)
     cleaned = re.sub(r"(?<![A-Z0-9])[\?\^]\s*(?=[A-Z]{1,6}\d{1,5}\b)", "", cleaned)
@@ -174,6 +192,7 @@ def split_active_incident_blocks(active_text: str) -> list[str]:
 
     return blocks
 
+
 def summarize_incident_block(block: str, max_chars: int = 700) -> str:
     """Create a compact call-detail summary suitable for phone push messages."""
     lines: list[str] = []
@@ -241,6 +260,7 @@ def maybe_record_active_missing_snapshot(
         state.log("Debug snapshot could not be saved for missing Active section.")
 
     return True
+
 
 def monitor_loop(state: RuntimeState) -> None:
     """Continuously poll PulsePoint and evaluate whether a new alert is required.
@@ -385,10 +405,9 @@ def monitor_loop(state: RuntimeState) -> None:
                             )
                             time.sleep(poll_seconds)
                             continue
-                        else:
-                            active_missing_snapshot_saved = False
-                            active_signatures, found_units = active_unit_incident_signatures(active_text, unit_re)
 
+                        active_missing_snapshot_saved = False
+                        active_signatures, found_units = active_unit_incident_signatures(active_text, unit_re)
                         current_signatures = set(active_signatures)
 
                         if not unit_mode_baseline_captured:
@@ -477,5 +496,3 @@ def monitor_loop(state: RuntimeState) -> None:
     with state.lock:
         state.monitor_running = False
     state.log("Monitor stopped.")
-
-
