@@ -117,6 +117,7 @@ M231
     assert summary.count("M231") == 1
     assert "123 Main St" in summary
 
+
 def test_split_active_incident_blocks_keeps_neighboring_incidents_separate():
     active = """
 (3)
@@ -144,6 +145,7 @@ AA310
     assert "M231" in blocks[0]
     assert "M11" in blocks[1]
     assert "AA310" in blocks[2]
+
 
 def test_new_neighbor_incident_does_not_create_new_monitored_unit_signature():
     before = """
@@ -191,6 +193,7 @@ AA310
     assert after_units == {"M231"}
     assert set(after_signatures) == set(before_signatures)
 
+
 def test_unit_status_prefix_change_does_not_create_new_signature():
     with_prefix = """
 Medical Emergency
@@ -213,6 +216,7 @@ M231
     after_signatures, _ = active_unit_incident_signatures(without_prefix, unit_re)
 
     assert set(after_signatures) == set(before_signatures)
+
 
 def test_unit_roster_change_does_not_create_new_signature_for_same_incident():
     with_extra_unit = """
@@ -237,6 +241,7 @@ M231
 
     assert set(after_signatures) == set(before_signatures)
 
+
 def test_incident_signature_text_ignores_unit_only_lines():
     block = """
 Medical Emergency
@@ -254,6 +259,7 @@ B1
     assert "M231" not in signature
     assert "E36" not in signature
     assert "B1" not in signature
+
 
 def test_unparseable_active_layout_fails_safe_without_bundling():
     active = """
@@ -391,3 +397,76 @@ def test_normalize_incident_text_removes_yesterday_time_noise():
     assert "5:09" not in normalized
     assert "VEGETATION FIRE" in normalized
     assert "25575 HWY 79" in normalized
+
+
+def test_split_active_incident_blocks_handles_weekday_time_boundary():
+    active = """
+Medical Emergency
+9:27 PM
+FERN CANYON RD, JAMUL, CA
+E36
+M231
+Vegetation Fire
+Friday 1:38 PM
+HWY 76 & EAST GRADE RD, HENSHAW, CA
+6HT
+9CU
+AA330
+AT71
+AT117
+B2
+B3A
+"""
+
+    blocks = split_active_incident_blocks(active)
+
+    assert len(blocks) == 2
+    assert "M231" in blocks[0]
+    assert "Vegetation Fire" not in blocks[0]
+    assert "Friday 1:38 PM" in blocks[1]
+    assert "AA330" in blocks[1]
+
+
+def test_weekday_neighbor_does_not_create_duplicate_monitored_signature():
+    before = """
+Medical Emergency
+9:27 PM
+FERN CANYON RD, JAMUL, CA
+E36
+M231
+"""
+
+    after = """
+Medical Emergency
+9:27 PM
+FERN CANYON RD, JAMUL, CA
+E36
+M231
+Vegetation Fire
+Friday 1:38 PM
+HWY 76 & EAST GRADE RD, HENSHAW, CA
+6HT
+9CU
+AA330
+AT71
+AT117
+B2
+B3A
+"""
+
+    unit_re = build_unit_regex(["M231"])
+    before_signatures, before_units = active_unit_incident_signatures(before, unit_re)
+    after_signatures, after_units = active_unit_incident_signatures(after, unit_re)
+
+    assert before_units == {"M231"}
+    assert after_units == {"M231"}
+    assert set(after_signatures) == set(before_signatures)
+
+
+def test_normalize_incident_text_removes_weekday_time_noise():
+    normalized = normalize_incident_text("Vegetation Fire Friday 1:38 PM HWY 76")
+
+    assert "FRIDAY" not in normalized
+    assert "1:38" not in normalized
+    assert "VEGETATION FIRE" in normalized
+    assert "HWY 76" in normalized
