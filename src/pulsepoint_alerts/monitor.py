@@ -28,7 +28,7 @@ from .runtime import RuntimeState
 
 
 INCIDENT_TIME_RE = re.compile(
-    r"^(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$",
+    r"^(?:(?:TODAY|YESTERDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$",
     re.I,
 )
 ACTIVE_COUNT_RE = re.compile(r"^\(\d+\)$")
@@ -91,7 +91,7 @@ def should_refresh_before_scan(now: float, last_refresh: float, refresh_seconds:
 def page_hash(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", text.strip().upper())
     cleaned = re.sub(
-        r"\b(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
+        r"\b(?:(?:TODAY|YESTERDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
         "",
         cleaned,
     )
@@ -118,11 +118,15 @@ def normalize_incident_text(text: str) -> str:
     """
     cleaned = text.upper()
     cleaned = re.sub(
-        r"\b(?:(?:TODAY|YESTERDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
+        r"\b(?:(?:TODAY|YESTERDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)\s+)?\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?\b",
         "",
         cleaned,
     )
-    cleaned = re.sub(r"\b(TODAY|YESTERDAY)\b", "", cleaned)
+    cleaned = re.sub(
+        r"\b(TODAY|YESTERDAY|MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)\b",
+        "",
+        cleaned,
+    )
     cleaned = re.sub(r"\b\d+\s*(MIN|MINS|MINUTE|MINUTES)\b", "", cleaned)
     cleaned = re.sub(r"\(\d+\)", "", cleaned)
     cleaned = re.sub(r"(?<![A-Z0-9])[\?\^]\s*(?=[A-Z]{1,6}\d{1,5}\b)", "", cleaned)
